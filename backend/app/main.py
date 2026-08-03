@@ -1,46 +1,72 @@
 import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Sistema de Facturación API", version="1.0.0")
+from app.core.config import settings
+from app.routers import auth, clientes, facturas, pagos, dashboard, cartera
 
-# Habilitar CORS para permitir peticiones desde cualquier origen
+app = FastAPI(title="Facturación API")
+
+# CORS: permite que el frontend (mismo dominio o distinto, según config) llame a la API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Rutas de directorios
+# --- Routers de la API (antes NO estaban registrados) ---
+app.include_router(auth.router)
+app.include_router(clientes.router)
+app.include_router(facturas.router)
+app.include_router(pagos.router)
+app.include_router(dashboard.router)
+app.include_router(cartera.router)
+
+# --- Rutas de directorios del frontend ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../frontend"))
+FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "../frontend"))
 
-# Montar archivos estáticos si la carpeta existe
-static_path = os.path.join(FRONTEND_DIR, "static")
-if os.path.exists(static_path):
-    app.mount("/static", StaticFiles(directory=static_path), name="static")
+app.mount(
+    "/static",
+    StaticFiles(directory=os.path.join(FRONTEND_DIR, "static")),
+    name="static",
+)
 
-# Ruta raíz para cargar el frontend principal (index.html)
+
+def _serve(pagina: str):
+    return FileResponse(os.path.join(FRONTEND_DIR, pagina))
+
+
 @app.get("/")
-def read_index():
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"status": "ok", "servicio": "facturacion-api", "entorno": "produccion"}
+async def index():
+    return _serve("index.html")
 
-# Ruta para el dashboard
+
 @app.get("/dashboard.html")
-def read_dashboard():
-    dash_path = os.path.join(FRONTEND_DIR, "dashboard.html")
-    if os.path.exists(dash_path):
-        return FileResponse(dash_path)
-    return {"error": "Dashboard no encontrado"}
+async def dashboard_html():
+    return _serve("dashboard.html")
 
-# Ruta de verificación de estado API pura
+
+@app.get("/clientes.html")
+async def clientes_html():
+    return _serve("clientes.html")
+
+
+@app.get("/facturas.html")
+async def facturas_html():
+    return _serve("facturas.html")
+
+
+@app.get("/cartera.html")
+async def cartera_html():
+    return _serve("cartera.html")
+
+
 @app.get("/api/health")
-def health_check():
-    return {"status": "ok", "servicio": "facturacion-api", "entorno": "produccion"}
+def health():
+    return {"status": "ok", "servicio": "facturacion-api", "entorno": settings.ENVIRONMENT}

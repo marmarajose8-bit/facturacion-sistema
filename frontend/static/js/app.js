@@ -1,6 +1,10 @@
-// Configuración central de la API. Cambiar en despliegue si el backend
-// vive en otro host (ej. https://api.tudominio.com).
-const API_BASE = window.API_BASE || "http://localhost:8000";
+// Configuración central de la API.
+// Por defecto usa el MISMO dominio donde se sirve el frontend (funciona
+// tanto en local con nginx+backend en el mismo host como en Railway,
+// donde frontend y backend van en un solo servicio).
+// Si el backend vive en otro host, define window.API_BASE antes de cargar
+// este archivo, ej: <script>window.API_BASE = "https://api.tudominio.com";</script>
+const API_BASE = window.API_BASE || "";
 
 const Auth = {
   getToken: () => localStorage.getItem("fa_token"),

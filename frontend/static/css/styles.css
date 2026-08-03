@@ -1,0 +1,125 @@
+/* Paleta: pizarra profunda + acento esmeralda (confianza financiera) + ámbar (alertas de mora) */
+:root {
+  --bg-app: #0b1220;
+  --panel: #111a2b;
+  --panel-2: #16213a;
+  --border: #23324d;
+  --text: #e6ebf5;
+  --text-dim: #93a1bd;
+  --accent: #14b88a;      /* esmeralda: cobrado / al día */
+  --accent-dim: #0d7a5c;
+  --warn: #eab308;        /* preventiva */
+  --danger: #f97359;      /* administrativa */
+  --danger-2: #ef4444;    /* extrajudicial */
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text);
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-mono-ledger {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.panel-2 {
+  background-color: var(--panel-2);
+  border: 1px solid var(--border);
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: var(--text-dim);
+  transition: all .15s ease;
+  font-size: 14px;
+}
+
+.sidebar-link:hover, .sidebar-link.active {
+  background-color: var(--panel-2);
+  color: var(--text);
+}
+
+.sidebar-link.active {
+  border-left: 3px solid var(--accent);
+}
+
+.badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.badge-al_dia   { background: rgba(20,184,138,.15); color: var(--accent); }
+.badge-preventiva { background: rgba(234,179,8,.15); color: var(--warn); }
+.badge-administrativa { background: rgba(249,115,89,.15); color: var(--danger); }
+.badge-extrajudicial { background: rgba(239,68,68,.18); color: var(--danger-2); }
+
+.badge-pendiente { background: rgba(147,161,189,.15); color: var(--text-dim); }
+.badge-parcial { background: rgba(234,179,8,.15); color: var(--warn); }
+.badge-pagada { background: rgba(20,184,138,.15); color: var(--accent); }
+.badge-vencida { background: rgba(239,68,68,.18); color: var(--danger-2); }
+.badge-anulada { background: rgba(147,161,189,.10); color: var(--text-dim); }
+
+input, select, textarea {
+  background-color: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: #06231c;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 9px 18px;
+  transition: filter .15s ease;
+}
+.btn-primary:hover { filter: brightness(1.1); }
+
+.btn-ghost {
+  background-color: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 9px 18px;
+}
+.btn-ghost:hover { background-color: var(--panel-2); }
+
+table.ledger th {
+  color: var(--text-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+table.ledger td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+table.ledger tr:hover td { background-color: var(--panel-2); }

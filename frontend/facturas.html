@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Facturas — Sistema de Facturación</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/styles.css" />
+</head>
+<body class="min-h-screen">
+<div class="flex">
+
+  <aside class="w-60 min-h-screen panel-2 p-4 flex flex-col justify-between" style="border-right:1px solid var(--border)">
+    <div>
+      <div class="flex items-center gap-2 px-2 mb-8">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center font-mono-ledger font-bold" style="background: var(--accent); color:#06231c;">$</div>
+        <span class="font-semibold">Cartera<span style="color:var(--accent)">.</span></span>
+      </div>
+      <nav class="space-y-1">
+        <a href="dashboard.html" class="sidebar-link">Dashboard</a>
+        <a href="clientes.html" class="sidebar-link">Clientes</a>
+        <a href="facturas.html" class="sidebar-link active">Facturas</a>
+        <a href="cartera.html" class="sidebar-link">Cartera y Mora</a>
+      </nav>
+    </div>
+    <div class="px-2">
+      <p class="text-xs mb-2" style="color:var(--text-dim)" id="usuarioNombre"></p>
+      <button onclick="Auth.logout()" class="btn-ghost w-full text-sm">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-8">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold">Facturas</h1>
+        <p class="text-sm" style="color:var(--text-dim)">Emisión, cuotas y estado de cobro</p>
+      </div>
+      <button class="btn-primary" onclick="abrirModalFactura()">+ Nueva factura</button>
+    </div>
+
+    <div class="panel overflow-hidden mb-8">
+      <table class="ledger w-full">
+        <thead>
+          <tr>
+            <th>No. Factura</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Saldo</th><th>Estado</th><th>Mora</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tablaFacturas"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Modal nueva factura -->
+<div id="modalFactura" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-6">
+  <div class="panel p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <h2 class="text-lg font-semibold mb-4">Nueva factura</h2>
+    <form id="formFactura" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Cliente</label>
+          <select id="cliente_id" required class="w-full mt-1"></select>
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Fecha de vencimiento</label>
+          <input type="date" id="fecha_vencimiento" required class="w-full mt-1" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Número de cuotas (1 = pago único)</label>
+        <input type="number" id="numero_cuotas" value="1" min="1" class="w-full mt-1" />
+      </div>
+
+      <div class="pt-2">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs" style="color:var(--text-dim)">Ítems de la factura</label>
+          <button type="button" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar ítem</button>
+        </div>
+        <div id="itemsContainer" class="space-y-2"></div>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" class="btn-ghost" onclick="cerrarModalFactura()">Cancelar</button>
+        <button type="submit" class="btn-primary">Emitir factura</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal registrar pago -->
+<div id="modalPago" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40">
+  <div class="panel p-6 w-full max-w-md">
+    <h2 class="text-lg font-semibold mb-4">Registrar pago / abono</h2>
+    <form id="formPago" class="space-y-3">
+      <input type="hidden" id="pago_factura_id" />
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Monto</label>
+        <input type="number" step="0.01" id="pago_monto" required class="w-full mt-1" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Tipo</label>
+          <select id="pago_tipo" class="w-full mt-1">
+            <option value="abono">Abono</option>
+            <option value="total">Pago total</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Método</label>
+          <select id="pago_metodo" class="w-full mt-1">
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="cheque">Cheque</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Referencia (opcional)</label>
+        <input id="pago_referencia" class="w-full mt-1" />
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" class="btn-ghost" onclick="cerrarModalPago()">Cancelar</button>
+        <button type="submit" class="btn-primary">Registrar pago</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="static/js/app.js"></script>
+<script>
+Auth.requireAuth();
+document.getElementById("usuarioNombre").textContent = Auth.getUsuario()?.nombre_completo || "";
+
+const urlParams = new URLSearchParams(window.location.search);
+const clienteFiltro = urlParams.get("cliente_id");
+
+function abrirModalFactura() { document.getElementById("modalFactura").classList.remove("hidden"); document.getElementById("modalFactura").classList.add("flex"); cargarClientesSelect(); }
+function cerrarModalFactura() { document.getElementById("modalFactura").classList.add("hidden"); document.getElementById("modalFactura").classList.remove("flex"); }
+function abrirModalPago(facturaId) {
+  document.getElementById("pago_factura_id").value = facturaId;
+  document.getElementById("modalPago").classList.remove("hidden");
+  document.getElementById("modalPago").classList.add("flex");
+}
+function cerrarModalPago() { document.getElementById("modalPago").classList.add("hidden"); document.getElementById("modalPago").classList.remove("flex"); }
+
+let itemCount = 0;
+function agregarItem() {
+  itemCount++;
+  const id = itemCount;
+  const div = document.createElement("div");
+  div.className = "grid grid-cols-12 gap-2 items-center item-row";
+  div.innerHTML = `
+    <input class="col-span-5 item-desc" placeholder="Descripción" required />
+    <input type="number" step="0.01" class="col-span-2 item-cant" placeholder="Cant." value="1" required />
+    <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Precio unit." required />
+    <input type="number" step="0.01" class="col-span-1 item-imp" placeholder="% imp." value="0" />
+    <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.parentElement.remove()">✕</button>
+  `;
+  document.getElementById("itemsContainer").appendChild(div);
+}
+
+async function cargarClientesSelect() {
+  const clientes = await api("/api/clientes?activo=true");
+  document.getElementById("cliente_id").innerHTML = clientes.map(c => `<option value="${c.id}">${c.razon_social}</option>`).join("");
+}
+
+document.getElementById("formFactura").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const filas = document.querySelectorAll("#itemsContainer .item-row");
+  if (filas.length === 0) { toast("Agrega al menos un ítem", "error"); return; }
+  const items = Array.from(filas).map(row => ({
+    descripcion: row.querySelector(".item-desc").value,
+    cantidad: parseFloat(row.querySelector(".item-cant").value),
+    precio_unitario: parseFloat(row.querySelector(".item-precio").value),
+    porcentaje_impuesto: parseFloat(row.querySelector(".item-imp").value || 0),
+  }));
+  try {
+    await api("/api/facturas", { method: "POST", body: {
+      cliente_id: parseInt(document.getElementById("cliente_id").value),
+      fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
+      numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
+      items,
+    }});
+    toast("Factura emitida correctamente");
+    cerrarModalFactura();
+    e.target.reset();
+    document.getElementById("itemsContainer").innerHTML = "";
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
+});
+
+document.getElementById("formPago").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/api/pagos", { method: "POST", body: {
+      factura_id: parseInt(document.getElementById("pago_factura_id").value),
+      monto: parseFloat(document.getElementById("pago_monto").value),
+      tipo_pago: document.getElementById("pago_tipo").value,
+      metodo_pago: document.getElementById("pago_metodo").value,
+      referencia: document.getElementById("pago_referencia").value || null,
+    }});
+    toast("Pago registrado y recibo generado");
+    cerrarModalPago();
+    e.target.reset();
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
+});
+
+async function cargarFacturas() {
+  try {
+    const qs = clienteFiltro ? `?cliente_id=${clienteFiltro}` : "";
+    const facturas = await api(`/api/facturas${qs}`);
+    document.getElementById("tablaFacturas").innerHTML = facturas.map(f => `
+      <tr>
+        <td class="font-mono-ledger">${f.numero_factura}</td>
+        <td>#${f.cliente_id}</td>
+        <td>${fmt.date(f.fecha_vencimiento)}</td>
+        <td class="font-mono-ledger">${fmt.money(f.total)}</td>
+        <td class="font-mono-ledger">${fmt.money(f.saldo_capital + f.interes_acumulado + f.recargo_mora)}</td>
+        <td><span class="badge badge-${f.estado}">${f.estado}</span></td>
+        <td><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
+        <td>${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : "—"}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="8" class="text-center py-8" style="color:var(--text-dim)">Sin facturas registradas aún.</td></tr>`;
+  } catch (err) { toast(err.message, "error"); }
+}
+
+cargarFacturas();
+</script>
+</body>
+</html>

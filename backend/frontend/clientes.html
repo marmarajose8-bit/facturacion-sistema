@@ -123,11 +123,11 @@ async function cargar() {
     const clientes = await api(`/api/clientes?q=${encodeURIComponent(q)}`);
     document.getElementById("tablaClientes").innerHTML = clientes.map(c => `
       <tr>
-        <td>${c.razon_social}</td>
-        <td class="font-mono-ledger">${c.numero_documento}</td>
-        <td>${c.email || c.telefono || "—"}</td>
-        <td class="font-mono-ledger">${fmt.money(c.limite_credito)}</td>
-        <td><span class="badge ${c.activo ? "badge-pagada" : "badge-anulada"}">${c.activo ? "Activo" : "Inactivo"}</span></td>
+        <td data-label="Cliente">${c.razon_social}</td>
+        <td class="font-mono-ledger" data-label="Documento">${c.numero_documento}</td>
+        <td data-label="Contacto">${c.email || c.telefono || "—"}</td>
+        <td class="font-mono-ledger" data-label="Límite crédito">${fmt.money(c.limite_credito)}</td>
+        <td data-label="Estado"><span class="badge ${c.activo ? "badge-pagada" : "badge-anulada"}">${c.activo ? "Activo" : "Inactivo"}</span></td>
         <td><a href="facturas.html?cliente_id=${c.id}" class="text-sm" style="color:var(--accent)">Ver facturas</a></td>
       </tr>
     `).join("") || `<tr><td colspan="6" class="text-center py-8" style="color:var(--text-dim)">Sin clientes registrados aún.</td></tr>`;

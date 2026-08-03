@@ -132,3 +132,47 @@ table.ledger td {
   font-size: 14px;
 }
 table.ledger tr:hover td { background-color: var(--panel-2); }
+
+/* En móvil, las tablas tipo "ledger" se convierten en tarjetas apiladas
+   para que los botones de acción (PDF, WhatsApp, Cobrar...) siempre
+   sean visibles sin necesidad de deslizar horizontalmente. */
+@media (max-width: 767px) {
+  table.ledger {
+    min-width: 0 !important;
+  }
+  table.ledger thead {
+    display: none;
+  }
+  table.ledger, table.ledger tbody, table.ledger tr, table.ledger td {
+    display: block;
+    width: 100%;
+  }
+  table.ledger tr {
+    border-bottom: 1px solid var(--border);
+    padding: 12px 14px;
+  }
+  table.ledger tr:last-child {
+    border-bottom: none;
+  }
+  table.ledger td {
+    padding: 4px 0;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  table.ledger td[data-label]::before {
+    content: attr(data-label);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  table.ledger td:not([data-label]) {
+    justify-content: flex-start;
+    padding-top: 8px;
+  }
+}

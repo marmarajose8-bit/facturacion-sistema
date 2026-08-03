@@ -72,13 +72,13 @@ async function cargar() {
     const items = await api(`/api/cartera/vencidas${qs}`);
     document.getElementById("tablaCartera").innerHTML = items.map(i => `
       <tr>
-        <td class="font-mono-ledger">${i.numero_factura}</td>
-        <td>${i.cliente}</td>
-        <td class="font-mono-ledger">${i.dias_atraso}</td>
-        <td><span class="badge badge-${i.estado_mora}">${i.estado_mora.replace("_"," ")}</span></td>
-        <td class="font-mono-ledger">${fmt.money(i.saldo_capital)}</td>
-        <td class="font-mono-ledger">${fmt.money(i.interes_acumulado)}</td>
-        <td class="font-mono-ledger">${fmt.money(i.recargo_mora)}</td>
+        <td class="font-mono-ledger" data-label="Factura">${i.numero_factura}</td>
+        <td data-label="Cliente">${i.cliente}</td>
+        <td class="font-mono-ledger" data-label="Días atraso">${i.dias_atraso}</td>
+        <td data-label="Clasificación"><span class="badge badge-${i.estado_mora}">${i.estado_mora.replace("_"," ")}</span></td>
+        <td class="font-mono-ledger" data-label="Saldo capital">${fmt.money(i.saldo_capital)}</td>
+        <td class="font-mono-ledger" data-label="Interés">${fmt.money(i.interes_acumulado)}</td>
+        <td class="font-mono-ledger" data-label="Recargo">${fmt.money(i.recargo_mora)}</td>
       </tr>
     `).join("") || `<tr><td colspan="7" class="text-center py-8" style="color:var(--text-dim)">Sin cuentas en mora bajo este filtro.</td></tr>`;
   } catch (err) { toast(err.message, "error"); }

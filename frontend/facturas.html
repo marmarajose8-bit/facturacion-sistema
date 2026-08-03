@@ -237,13 +237,13 @@ async function cargarFacturas() {
     facturas.forEach(f => facturasPorId[f.id] = f);
     document.getElementById("tablaFacturas").innerHTML = facturas.map(f => `
       <tr>
-        <td class="font-mono-ledger">${f.numero_factura}</td>
-        <td>${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</td>
-        <td>${fmt.date(f.fecha_vencimiento)}</td>
-        <td class="font-mono-ledger">${fmt.money(f.total)}</td>
-        <td class="font-mono-ledger">${fmt.money(f.saldo_capital + f.interes_acumulado + f.recargo_mora)}</td>
-        <td><span class="badge badge-${f.estado}">${f.estado}</span></td>
-        <td><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
+        <td class="font-mono-ledger" data-label="No. Factura">${f.numero_factura}</td>
+        <td data-label="Cliente">${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</td>
+        <td data-label="Vencimiento">${fmt.date(f.fecha_vencimiento)}</td>
+        <td class="font-mono-ledger" data-label="Total">${fmt.money(f.total)}</td>
+        <td class="font-mono-ledger" data-label="Saldo">${fmt.money(f.saldo_capital + f.interes_acumulado + f.recargo_mora)}</td>
+        <td data-label="Estado"><span class="badge badge-${f.estado}">${f.estado}</span></td>
+        <td data-label="Mora"><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
         <td class="whitespace-nowrap">
           <div class="flex items-center gap-3">
             ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}

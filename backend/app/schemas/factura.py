@@ -37,12 +37,21 @@ class CuotaOut(BaseModel):
     estado: str
 
 
+class ClienteMiniOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    razon_social: str
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+
+
 class FacturaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     numero_factura: str
     cliente_id: int
+    cliente: Optional[ClienteMiniOut] = None
     fecha_emision: date
     fecha_vencimiento: date
     subtotal: float

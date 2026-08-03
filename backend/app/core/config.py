@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     CORS_ORIGINS: str = "http://localhost:8080"
+    EMPRESA_NOMBRE: str = "Tu Empresa"
 
     # Parámetros de negocio (configurables por cliente sin tocar código)
     TASA_INTERES_MORA_MENSUAL: float = 0.03

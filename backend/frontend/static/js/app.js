@@ -48,6 +48,34 @@ const fmt = {
   date: (d) => new Date(d).toLocaleDateString("es-DO", { year: "numeric", month: "short", day: "numeric" }),
 };
 
+// Descarga el PDF de una factura (autenticado) y dispara la descarga en el navegador.
+async function descargarPDFFactura(facturaId, numeroFactura) {
+  const res = await fetch(`${API_BASE}/api/facturas/${facturaId}/pdf`, {
+    headers: { Authorization: `Bearer ${Auth.getToken()}` },
+  });
+  if (!res.ok) throw new Error("No se pudo generar el PDF de la factura");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `factura_${numeroFactura}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Abre WhatsApp (web o app) con un mensaje pre-escrito hacia el teléfono del cliente.
+// NOTA: WhatsApp no permite adjuntar archivos automáticamente vía link — por eso
+// esto se combina con descargarPDFFactura(): el PDF se descarga y el usuario lo
+// adjunta manualmente en la conversación que se abre.
+function abrirWhatsapp(telefono, mensaje) {
+  const limpio = (telefono || "").replace(/[^0-9]/g, "");
+  if (!limpio) throw new Error("Este cliente no tiene un teléfono válido registrado");
+  const url = `https://wa.me/${limpio}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, "_blank");
+}
+
 function toast(msg, tipo = "info") {
   const el = document.createElement("div");
   el.className = `fixed bottom-6 right-6 panel px-5 py-3 shadow-lg z-50 text-sm`;

@@ -191,12 +191,17 @@ document.getElementById("formFactura").addEventListener("submit", async (e) => {
   } catch (err) { toast(err.message, "error"); }
 });
 
+let facturasPorId = {};
+
 document.getElementById("formPago").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const facturaId = parseInt(document.getElementById("pago_factura_id").value);
+  const facturaAntes = facturasPorId[facturaId]; // guardamos referencia antes de recargar la lista
   try {
+    const monto = parseFloat(document.getElementById("pago_monto").value);
     await api("/api/pagos", { method: "POST", body: {
-      factura_id: parseInt(document.getElementById("pago_factura_id").value),
-      monto: parseFloat(document.getElementById("pago_monto").value),
+      factura_id: facturaId,
+      monto,
       tipo_pago: document.getElementById("pago_tipo").value,
       metodo_pago: document.getElementById("pago_metodo").value,
       referencia: document.getElementById("pago_referencia").value || null,
@@ -204,7 +209,21 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
     toast("Pago registrado y recibo generado");
     cerrarModalPago();
     e.target.reset();
-    cargarFacturas();
+    await cargarFacturas();
+
+    // Notificación de pago por WhatsApp (manual: abre el chat con el mensaje listo)
+    if (facturaAntes?.cliente?.telefono) {
+      const f = facturasPorId[facturaId] || facturaAntes;
+      const saldoRestante = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
+      const mensaje = saldoRestante > 0
+        ? `Hola ${facturaAntes.cliente.razon_social}, confirmamos que recibimos tu pago de ${fmt.money(monto)} para la factura ${facturaAntes.numero_factura}. Saldo restante: ${fmt.money(saldoRestante)}.`
+        : `Hola ${facturaAntes.cliente.razon_social}, confirmamos que recibimos tu pago de ${fmt.money(monto)} para la factura ${facturaAntes.numero_factura}. ¡Tu factura quedó saldada por completo, gracias!`;
+      try {
+        abrirWhatsapp(facturaAntes.cliente.telefono, mensaje);
+      } catch (_) { /* cliente sin teléfono válido: se omite silenciosamente aquí */ }
+    } else {
+      toast("Este cliente no tiene teléfono registrado — no se pudo abrir la notificación por WhatsApp", "error");
+    }
   } catch (err) { toast(err.message, "error"); }
 });
 
@@ -212,18 +231,42 @@ async function cargarFacturas() {
   try {
     const qs = clienteFiltro ? `?cliente_id=${clienteFiltro}` : "";
     const facturas = await api(`/api/facturas${qs}`);
+    facturasPorId = {};
+    facturas.forEach(f => facturasPorId[f.id] = f);
     document.getElementById("tablaFacturas").innerHTML = facturas.map(f => `
       <tr>
         <td class="font-mono-ledger">${f.numero_factura}</td>
-        <td>#${f.cliente_id}</td>
+        <td>${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</td>
         <td>${fmt.date(f.fecha_vencimiento)}</td>
         <td class="font-mono-ledger">${fmt.money(f.total)}</td>
         <td class="font-mono-ledger">${fmt.money(f.saldo_capital + f.interes_acumulado + f.recargo_mora)}</td>
         <td><span class="badge badge-${f.estado}">${f.estado}</span></td>
         <td><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
-        <td>${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : "—"}</td>
+        <td class="whitespace-nowrap">
+          <div class="flex items-center gap-3">
+            ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}
+            <button class="text-sm" style="color:var(--text-dim)" title="Descargar PDF" onclick="descargarPDFFactura(${f.id}, '${f.numero_factura}').catch(err => toast(err.message, 'error'))">PDF</button>
+            <button class="text-sm" style="color:#25D366" title="Enviar por WhatsApp" onclick="enviarPorWhatsapp(${f.id})">WhatsApp</button>
+          </div>
+        </td>
       </tr>
     `).join("") || `<tr><td colspan="8" class="text-center py-8" style="color:var(--text-dim)">Sin facturas registradas aún.</td></tr>`;
+  } catch (err) { toast(err.message, "error"); }
+}
+
+async function enviarPorWhatsapp(facturaId) {
+  const f = facturasPorId[facturaId];
+  if (!f) return;
+  if (!f.cliente?.telefono) {
+    toast("Este cliente no tiene teléfono registrado — agrégalo en Clientes primero", "error");
+    return;
+  }
+  try {
+    await descargarPDFFactura(f.id, f.numero_factura);
+    const saldo = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
+    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}). Vence el ${fmt.date(f.fecha_vencimiento)}.`;
+    abrirWhatsapp(f.cliente.telefono, mensaje);
+    toast("Se descargó el PDF — adjúntalo en la conversación de WhatsApp que se abrió");
   } catch (err) { toast(err.message, "error"); }
 }
 

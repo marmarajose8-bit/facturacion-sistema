@@ -4,15 +4,18 @@ from typing import List, Optional
 
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.security import decode_token
+from app.core.config import settings
 from app.models.cliente import Cliente
 from app.models.factura import Factura, FacturaItem, Cuota, EstadoFactura
 from app.schemas.factura import FacturaCreate, FacturaOut
 from app.services.numeracion import generar_numero_factura
 from app.services.mora import actualizar_estado_mora_factura
+from app.services.pdf_factura import generar_pdf_factura
 
 router = APIRouter(prefix="/api/facturas", tags=["Facturación"], dependencies=[Depends(decode_token)])
 
@@ -24,7 +27,9 @@ def listar_facturas(
     estado: Optional[str] = None,
     estado_mora: Optional[str] = None,
 ):
-    query = db.query(Factura).options(joinedload(Factura.items), joinedload(Factura.cuotas))
+    query = db.query(Factura).options(
+        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.cliente)
+    )
     if cliente_id:
         query = query.filter(Factura.cliente_id == cliente_id)
     if estado:
@@ -122,6 +127,23 @@ def obtener_factura(factura_id: int, db: Session = Depends(get_db)):
     actualizar_estado_mora_factura(factura)
     db.commit()
     return factura
+
+
+@router.get("/{factura_id}/pdf")
+def descargar_pdf_factura(factura_id: int, db: Session = Depends(get_db)):
+    factura = db.query(Factura).options(
+        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.cliente)
+    ).get(factura_id)
+    if not factura:
+        raise HTTPException(404, "Factura no encontrada")
+
+    pdf_bytes = generar_pdf_factura(factura, nombre_empresa=settings.EMPRESA_NOMBRE)
+    nombre_archivo = f"factura_{factura.numero_factura}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{nombre_archivo}"'},
+    )
 
 
 @router.post("/{factura_id}/anular", response_model=FacturaOut)

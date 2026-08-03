@@ -9,29 +9,29 @@
 <link rel="stylesheet" href="static/css/styles.css" />
 </head>
 <body class="min-h-screen">
-<div class="flex">
+<div class="flex flex-col md:flex-row">
 
-  <aside class="w-60 min-h-screen panel-2 p-4 flex flex-col justify-between" style="border-right:1px solid var(--border)">
-    <div>
-      <div class="flex items-center gap-2 px-2 mb-8">
+  <aside class="w-full md:w-60 md:min-h-screen panel-2 p-3 md:p-4 flex flex-row md:flex-col items-center md:items-stretch justify-between gap-3 md:gap-0" style="border-bottom:1px solid var(--border);">
+    <div class="flex items-center gap-4 md:block min-w-0 overflow-x-auto">
+      <div class="flex items-center gap-2 px-0 md:px-2 md:mb-8 shrink-0">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center font-mono-ledger font-bold" style="background: var(--accent); color:#06231c;">$</div>
         <span class="font-semibold">Cartera<span style="color:var(--accent)">.</span></span>
       </div>
-      <nav class="space-y-1">
+      <nav class="flex md:flex-col gap-1 md:gap-0 md:space-y-1 shrink-0">
         <a href="dashboard.html" class="sidebar-link">Dashboard</a>
         <a href="clientes.html" class="sidebar-link">Clientes</a>
         <a href="facturas.html" class="sidebar-link active">Facturas</a>
         <a href="cartera.html" class="sidebar-link">Cartera y Mora</a>
       </nav>
     </div>
-    <div class="px-2">
-      <p class="text-xs mb-2" style="color:var(--text-dim)" id="usuarioNombre"></p>
-      <button onclick="Auth.logout()" class="btn-ghost w-full text-sm">Cerrar sesión</button>
+    <div class="px-0 md:px-2 shrink-0">
+      <p class="text-xs mb-2 hidden md:block" style="color:var(--text-dim)" id="usuarioNombre"></p>
+      <button onclick="Auth.logout()" class="btn-ghost text-sm px-3 py-2 md:w-full">Salir</button>
     </div>
   </aside>
 
-  <main class="flex-1 p-8">
-    <div class="flex items-center justify-between mb-6">
+  <main class="flex-1 p-4 md:p-8 w-full min-w-0">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
       <div>
         <h1 class="text-2xl font-semibold">Facturas</h1>
         <p class="text-sm" style="color:var(--text-dim)">Emisión, cuotas y estado de cobro</p>
@@ -40,7 +40,8 @@
     </div>
 
     <div class="panel overflow-hidden mb-8">
-      <table class="ledger w-full">
+      <div class="overflow-x-auto">
+      <table class="ledger w-full" style="min-width:680px;">
         <thead>
           <tr>
             <th>No. Factura</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Saldo</th><th>Estado</th><th>Mora</th><th></th>
@@ -48,16 +49,17 @@
         </thead>
         <tbody id="tablaFacturas"></tbody>
       </table>
+      </div>
     </div>
   </main>
 </div>
 
 <!-- Modal nueva factura -->
-<div id="modalFactura" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-6">
-  <div class="panel p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+<div id="modalFactura" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
+  <div class="panel p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
     <h2 class="text-lg font-semibold mb-4">Nueva factura</h2>
     <form id="formFactura" class="space-y-3">
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Cliente</label>
           <select id="cliente_id" required class="w-full mt-1"></select>
@@ -89,8 +91,8 @@
 </div>
 
 <!-- Modal registrar pago -->
-<div id="modalPago" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40">
-  <div class="panel p-6 w-full max-w-md">
+<div id="modalPago" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
+  <div class="panel p-4 sm:p-6 w-full max-w-md">
     <h2 class="text-lg font-semibold mb-4">Registrar pago / abono</h2>
     <form id="formPago" class="space-y-3">
       <input type="hidden" id="pago_factura_id" />
@@ -98,7 +100,7 @@
         <label class="text-xs" style="color:var(--text-dim)">Monto</label>
         <input type="number" step="0.01" id="pago_monto" required class="w-full mt-1" />
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Tipo</label>
           <select id="pago_tipo" class="w-full mt-1">

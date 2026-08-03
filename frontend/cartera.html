@@ -9,28 +9,28 @@
 <link rel="stylesheet" href="static/css/styles.css" />
 </head>
 <body class="min-h-screen">
-<div class="flex">
+<div class="flex flex-col md:flex-row">
 
-  <aside class="w-60 min-h-screen panel-2 p-4 flex flex-col justify-between" style="border-right:1px solid var(--border)">
-    <div>
-      <div class="flex items-center gap-2 px-2 mb-8">
+  <aside class="w-full md:w-60 md:min-h-screen panel-2 p-3 md:p-4 flex flex-row md:flex-col items-center md:items-stretch justify-between gap-3 md:gap-0" style="border-bottom:1px solid var(--border);">
+    <div class="flex items-center gap-4 md:block min-w-0 overflow-x-auto">
+      <div class="flex items-center gap-2 px-0 md:px-2 md:mb-8 shrink-0">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center font-mono-ledger font-bold" style="background: var(--accent); color:#06231c;">$</div>
         <span class="font-semibold">Cartera<span style="color:var(--accent)">.</span></span>
       </div>
-      <nav class="space-y-1">
+      <nav class="flex md:flex-col gap-1 md:gap-0 md:space-y-1 shrink-0">
         <a href="dashboard.html" class="sidebar-link">Dashboard</a>
         <a href="clientes.html" class="sidebar-link">Clientes</a>
         <a href="facturas.html" class="sidebar-link">Facturas</a>
         <a href="cartera.html" class="sidebar-link active">Cartera y Mora</a>
       </nav>
     </div>
-    <div class="px-2">
-      <p class="text-xs mb-2" style="color:var(--text-dim)" id="usuarioNombre"></p>
-      <button onclick="Auth.logout()" class="btn-ghost w-full text-sm">Cerrar sesión</button>
+    <div class="px-0 md:px-2 shrink-0">
+      <p class="text-xs mb-2 hidden md:block" style="color:var(--text-dim)" id="usuarioNombre"></p>
+      <button onclick="Auth.logout()" class="btn-ghost text-sm px-3 py-2 md:w-full">Salir</button>
     </div>
   </aside>
 
-  <main class="flex-1 p-8">
+  <main class="flex-1 p-4 md:p-8 w-full min-w-0">
     <div class="mb-6">
       <h1 class="text-2xl font-semibold">Cartera y Mora</h1>
       <p class="text-sm" style="color:var(--text-dim)">Alertas tempranas por clasificación de días de atraso</p>
@@ -44,7 +44,8 @@
     </div>
 
     <div class="panel overflow-hidden">
-      <table class="ledger w-full">
+      <div class="overflow-x-auto">
+      <table class="ledger w-full" style="min-width:680px;">
         <thead>
           <tr>
             <th>Factura</th><th>Cliente</th><th>Días atraso</th><th>Clasificación</th><th>Saldo capital</th><th>Interés</th><th>Recargo</th>
@@ -52,6 +53,7 @@
         </thead>
         <tbody id="tablaCartera"></tbody>
       </table>
+      </div>
     </div>
   </main>
 </div>

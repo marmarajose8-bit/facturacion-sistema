@@ -34,20 +34,9 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-local}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
     ports:
-      - "8000:8000"
+      - "8080:8000"
     volumes:
       - ./backend:/app
-
-  frontend:
-    image: nginx:alpine
-    container_name: facturacion_frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
-    ports:
-      - "8080:80"
 
 volumes:
   db_data:

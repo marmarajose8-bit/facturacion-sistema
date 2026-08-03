@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — Sistema de Facturación</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/styles.css" />
+</head>
+<body class="min-h-screen">
+<div class="flex">
+
+  <aside class="w-60 min-h-screen panel-2 p-4 flex flex-col justify-between" style="border-right:1px solid var(--border)">
+    <div>
+      <div class="flex items-center gap-2 px-2 mb-8">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center font-mono-ledger font-bold" style="background: var(--accent); color:#06231c;">$</div>
+        <span class="font-semibold">Cartera<span style="color:var(--accent)">.</span></span>
+      </div>
+      <nav class="space-y-1">
+        <a href="dashboard.html" class="sidebar-link active">Dashboard</a>
+        <a href="clientes.html" class="sidebar-link">Clientes</a>
+        <a href="facturas.html" class="sidebar-link">Facturas</a>
+        <a href="cartera.html" class="sidebar-link">Cartera y Mora</a>
+      </nav>
+    </div>
+    <div class="px-2">
+      <p class="text-xs mb-2" style="color:var(--text-dim)" id="usuarioNombre"></p>
+      <button onclick="Auth.logout()" class="btn-ghost w-full text-sm">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-8">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-semibold">Panel general</h1>
+        <p class="text-sm" style="color:var(--text-dim)">Resumen de facturación y cobros al corte de hoy</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-4 gap-5 mb-8">
+      <div class="panel p-5">
+        <p class="text-xs" style="color:var(--text-dim)">Total facturado</p>
+        <p class="text-2xl font-mono-ledger mt-2" id="totalFacturado">—</p>
+      </div>
+      <div class="panel p-5">
+        <p class="text-xs" style="color:var(--text-dim)">Total cobrado</p>
+        <p class="text-2xl font-mono-ledger mt-2" style="color:var(--accent)" id="totalCobrado">—</p>
+      </div>
+      <div class="panel p-5">
+        <p class="text-xs" style="color:var(--text-dim)">Pendiente por cobrar</p>
+        <p class="text-2xl font-mono-ledger mt-2" style="color:var(--warn)" id="totalPendiente">—</p>
+      </div>
+      <div class="panel p-5">
+        <p class="text-xs" style="color:var(--text-dim)">Facturas vencidas</p>
+        <p class="text-2xl font-mono-ledger mt-2" style="color:var(--danger-2)" id="facturasVencidas">—</p>
+      </div>
+    </div>
+
+    <div class="panel p-6">
+      <h2 class="text-sm font-semibold mb-4" style="color:var(--text-dim)">CLASIFICACIÓN DE CARTERA</h2>
+      <div id="resumenCartera" class="grid grid-cols-4 gap-4"></div>
+    </div>
+  </main>
+</div>
+
+<script src="static/js/app.js"></script>
+<script>
+Auth.requireAuth();
+document.getElementById("usuarioNombre").textContent = Auth.getUsuario()?.nombre_completo || "";
+
+async function cargar() {
+  try {
+    const totales = await api("/api/dashboard/totales");
+    document.getElementById("totalFacturado").textContent = fmt.money(totales.total_facturado);
+    document.getElementById("totalCobrado").textContent = fmt.money(totales.total_cobrado);
+    document.getElementById("totalPendiente").textContent = fmt.money(totales.total_pendiente);
+    document.getElementById("facturasVencidas").textContent = totales.facturas_vencidas;
+
+    const resumen = await api("/api/cartera/resumen");
+    const labels = { al_dia: "Al día", preventiva: "Preventiva", administrativa: "Administrativa", extrajudicial: "Extrajudicial" };
+    const cont = document.getElementById("resumenCartera");
+    cont.innerHTML = Object.entries(resumen).map(([key, val]) => `
+      <div class="panel-2 rounded-xl p-4">
+        <span class="badge badge-${key}">${labels[key]}</span>
+        <p class="text-xl font-mono-ledger mt-3">${fmt.money(val.monto)}</p>
+        <p class="text-xs mt-1" style="color:var(--text-dim)">${val.cantidad} factura(s)</p>
+      </div>
+    `).join("");
+  } catch (err) {
+    toast(err.message, "error");
+  }
+}
+cargar();
+</script>
+</body>
+</html>

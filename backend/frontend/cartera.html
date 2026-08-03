@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cartera y Mora — Sistema de Facturación</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/styles.css" />
+</head>
+<body class="min-h-screen">
+<div class="flex">
+
+  <aside class="w-60 min-h-screen panel-2 p-4 flex flex-col justify-between" style="border-right:1px solid var(--border)">
+    <div>
+      <div class="flex items-center gap-2 px-2 mb-8">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center font-mono-ledger font-bold" style="background: var(--accent); color:#06231c;">$</div>
+        <span class="font-semibold">Cartera<span style="color:var(--accent)">.</span></span>
+      </div>
+      <nav class="space-y-1">
+        <a href="dashboard.html" class="sidebar-link">Dashboard</a>
+        <a href="clientes.html" class="sidebar-link">Clientes</a>
+        <a href="facturas.html" class="sidebar-link">Facturas</a>
+        <a href="cartera.html" class="sidebar-link active">Cartera y Mora</a>
+      </nav>
+    </div>
+    <div class="px-2">
+      <p class="text-xs mb-2" style="color:var(--text-dim)" id="usuarioNombre"></p>
+      <button onclick="Auth.logout()" class="btn-ghost w-full text-sm">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-8">
+    <div class="mb-6">
+      <h1 class="text-2xl font-semibold">Cartera y Mora</h1>
+      <p class="text-sm" style="color:var(--text-dim)">Alertas tempranas por clasificación de días de atraso</p>
+    </div>
+
+    <div class="flex gap-3 mb-6">
+      <button class="btn-ghost text-sm filtro" data-filtro="" onclick="filtrar('')">Todas</button>
+      <button class="btn-ghost text-sm filtro" data-filtro="preventiva" onclick="filtrar('preventiva')">Preventiva</button>
+      <button class="btn-ghost text-sm filtro" data-filtro="administrativa" onclick="filtrar('administrativa')">Administrativa</button>
+      <button class="btn-ghost text-sm filtro" data-filtro="extrajudicial" onclick="filtrar('extrajudicial')">Extrajudicial</button>
+    </div>
+
+    <div class="panel overflow-hidden">
+      <table class="ledger w-full">
+        <thead>
+          <tr>
+            <th>Factura</th><th>Cliente</th><th>Días atraso</th><th>Clasificación</th><th>Saldo capital</th><th>Interés</th><th>Recargo</th>
+          </tr>
+        </thead>
+        <tbody id="tablaCartera"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="static/js/app.js"></script>
+<script>
+Auth.requireAuth();
+document.getElementById("usuarioNombre").textContent = Auth.getUsuario()?.nombre_completo || "";
+
+let filtroActual = "";
+function filtrar(f) { filtroActual = f; cargar(); }
+
+async function cargar() {
+  try {
+    const qs = filtroActual ? `?estado_mora=${filtroActual}` : "";
+    const items = await api(`/api/cartera/vencidas${qs}`);
+    document.getElementById("tablaCartera").innerHTML = items.map(i => `
+      <tr>
+        <td class="font-mono-ledger">${i.numero_factura}</td>
+        <td>${i.cliente}</td>
+        <td class="font-mono-ledger">${i.dias_atraso}</td>
+        <td><span class="badge badge-${i.estado_mora}">${i.estado_mora.replace("_"," ")}</span></td>
+        <td class="font-mono-ledger">${fmt.money(i.saldo_capital)}</td>
+        <td class="font-mono-ledger">${fmt.money(i.interes_acumulado)}</td>
+        <td class="font-mono-ledger">${fmt.money(i.recargo_mora)}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="7" class="text-center py-8" style="color:var(--text-dim)">Sin cuentas en mora bajo este filtro.</td></tr>`;
+  } catch (err) { toast(err.message, "error"); }
+}
+cargar();
+</script>
+</body>
+</html>

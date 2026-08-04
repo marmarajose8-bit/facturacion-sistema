@@ -1,4 +1,4 @@
-/* Paleta: pizarra profunda + acento esmeralda (confianza financiera) + ámbar (alertas de mora) */
+/* Paleta: pizarra profunda + acento azul/rojo RYM Inversiones + ámbar (alertas de mora) */
 :root {
   --bg-app: #0b1220;
   --panel: #111a2b;
@@ -6,11 +6,11 @@
   --border: #23324d;
   --text: #e6ebf5;
   --text-dim: #93a1bd;
-  --accent: #14b88a;      /* esmeralda: cobrado / al día */
-  --accent-dim: #0d7a5c;
+  --accent: #2f6fff;      /* azul RYM: cobrado / al día */
+  --accent-dim: #003fbb;  /* azul RYM oscuro */
   --warn: #eab308;        /* preventiva */
-  --danger: #f97359;      /* administrativa */
-  --danger-2: #ef4444;    /* extrajudicial */
+  --danger: #ff5c5c;      /* administrativa */
+  --danger-2: #d70012;    /* rojo RYM: extrajudicial */
 }
 
 body {

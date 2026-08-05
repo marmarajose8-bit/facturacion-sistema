@@ -33,6 +33,7 @@ class Pago(Base):
     monto_interes = Column(Numeric(14, 2), nullable=False, default=0)
     monto_recargo = Column(Numeric(14, 2), nullable=False, default=0)
     monto_total = Column(Numeric(14, 2), nullable=False, default=0)
+    vuelto = Column(Numeric(14, 2), nullable=False, default=0)  # cambio entregado al cliente (solo efectivo)
 
     referencia = Column(String(100), nullable=True)  # # cheque, # transferencia, etc.
     notas = Column(Text, nullable=True)

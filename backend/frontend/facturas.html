@@ -118,8 +118,9 @@
       <input type="hidden" id="pago_factura_id" />
       <div>
         <label class="text-xs" style="color:var(--text-dim)">Monto</label>
-        <input type="number" step="0.01" id="pago_monto" required class="w-full mt-1" />
+        <input type="number" step="0.01" id="pago_monto" required class="w-full mt-1" oninput="actualizarVuelto()" />
       </div>
+      <p id="pago_vuelto_info" class="text-sm hidden" style="color:var(--accent)"></p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Tipo</label>
@@ -130,7 +131,7 @@
         </div>
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Método</label>
-          <select id="pago_metodo" class="w-full mt-1">
+          <select id="pago_metodo" class="w-full mt-1" onchange="actualizarVuelto()">
             <option value="efectivo">Efectivo</option>
             <option value="transferencia">Transferencia</option>
             <option value="tarjeta">Tarjeta</option>
@@ -162,10 +163,38 @@ function abrirModalFactura() { document.getElementById("modalFactura").classList
 function cerrarModalFactura() { document.getElementById("modalFactura").classList.add("hidden"); document.getElementById("modalFactura").classList.remove("flex"); }
 function abrirModalPago(facturaId) {
   document.getElementById("pago_factura_id").value = facturaId;
+  document.getElementById("pago_monto").value = "";
+  document.getElementById("pago_vuelto_info").classList.add("hidden");
   document.getElementById("modalPago").classList.remove("hidden");
   document.getElementById("modalPago").classList.add("flex");
 }
 function cerrarModalPago() { document.getElementById("modalPago").classList.add("hidden"); document.getElementById("modalPago").classList.remove("flex"); }
+
+function actualizarVuelto() {
+  const facturaId = parseInt(document.getElementById("pago_factura_id").value);
+  const f = facturasPorId[facturaId];
+  const info = document.getElementById("pago_vuelto_info");
+  if (!f) { info.classList.add("hidden"); return; }
+
+  const saldo = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
+  const monto = parseFloat(document.getElementById("pago_monto").value);
+  const metodo = document.getElementById("pago_metodo").value;
+
+  if (isNaN(monto) || monto <= 0) { info.classList.add("hidden"); return; }
+
+  if (monto > saldo) {
+    if (metodo === "efectivo") {
+      info.textContent = `Vuelto a entregar en efectivo: ${fmt.money(monto - saldo)}`;
+      info.style.color = "var(--accent)";
+    } else {
+      info.textContent = `El monto excede el saldo (${fmt.money(saldo)}) — solo se permite recibir de más cuando el método es efectivo.`;
+      info.style.color = "var(--danger-2)";
+    }
+    info.classList.remove("hidden");
+  } else {
+    info.classList.add("hidden");
+  }
+}
 
 let itemCount = 0;
 function agregarItem() {
@@ -277,14 +306,18 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
   const facturaAntes = facturasPorId[facturaId]; // guardamos referencia antes de recargar la lista
   try {
     const monto = parseFloat(document.getElementById("pago_monto").value);
-    await api("/api/pagos", { method: "POST", body: {
+    const pagoRegistrado = await api("/api/pagos", { method: "POST", body: {
       factura_id: facturaId,
       monto,
       tipo_pago: document.getElementById("pago_tipo").value,
       metodo_pago: document.getElementById("pago_metodo").value,
       referencia: document.getElementById("pago_referencia").value || null,
     }});
-    toast("Pago registrado y recibo generado");
+    if (pagoRegistrado.vuelto > 0) {
+      toast(`Pago registrado — entrega ${fmt.money(pagoRegistrado.vuelto)} de vuelto en efectivo`);
+    } else {
+      toast("Pago registrado y recibo generado");
+    }
     cerrarModalPago();
     e.target.reset();
     await cargarFacturas();

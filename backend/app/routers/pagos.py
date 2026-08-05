@@ -47,11 +47,23 @@ def registrar_pago(
     saldo_total_exigible = (
         Decimal(factura.saldo_capital) + Decimal(factura.interes_acumulado) + Decimal(factura.recargo_mora)
     )
+
+    vuelto = Decimal("0")
     if monto > saldo_total_exigible:
-        raise HTTPException(400, f"El monto excede el saldo pendiente ({saldo_total_exigible})")
+        if payload.metodo_pago != "efectivo":
+            raise HTTPException(
+                400,
+                f"El monto excede el saldo pendiente ({saldo_total_exigible}). "
+                "Solo se puede recibir de más — y dar vuelto — cuando el método es efectivo.",
+            )
+        # Cliente pagó con un billete más grande: se aplica solo lo que debía y el resto es vuelto
+        vuelto = monto - saldo_total_exigible
+        monto_aplicado = saldo_total_exigible
+    else:
+        monto_aplicado = monto
 
     # Orden de aplicación del pago: primero recargos, luego intereses, luego capital
-    restante = monto
+    restante = monto_aplicado
     aplicado_recargo = min(restante, Decimal(factura.recargo_mora))
     restante -= aplicado_recargo
     aplicado_interes = min(restante, Decimal(factura.interes_acumulado))
@@ -86,7 +98,8 @@ def registrar_pago(
         monto_capital=aplicado_capital,
         monto_interes=aplicado_interes,
         monto_recargo=aplicado_recargo,
-        monto_total=monto,
+        monto_total=monto_aplicado,
+        vuelto=vuelto,
         referencia=payload.referencia,
         notas=payload.notas,
     )
@@ -96,7 +109,7 @@ def registrar_pago(
     recibo = Recibo(
         numero_recibo=generar_numero_recibo(db),
         pago_id=pago.id,
-        monto_total=monto,
+        monto_total=monto_aplicado,
     )
     db.add(recibo)
 

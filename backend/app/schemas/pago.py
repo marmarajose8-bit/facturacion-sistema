@@ -25,6 +25,7 @@ class PagoOut(BaseModel):
     monto_interes: float
     monto_recargo: float
     monto_total: float
+    vuelto: float
     referencia: Optional[str]
     fecha_pago: datetime
 

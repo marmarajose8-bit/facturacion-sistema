@@ -52,7 +52,7 @@
                         <label class="block text-sm font-medium text-gray-300 mb-1">Nombre del Cliente</label>
                         <select id="selectCliente" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:border-amber-500 focus:outline-none">
                             <option value="">Seleccione un cliente...</option>
-                            <!-- Se llenará dinámicamente desde la API -->
+                            <option value="1" selected>jose gregorio manan santan</option>
                         </select>
                     </div>
 
@@ -101,23 +101,6 @@
     </div>
 
     <script>
-        // Cargar clientes al iniciar la página
-        document.addEventListener("DOMContentLoaded", async () => {
-            try {
-                const res = await fetch('/api/v1/clientes/');
-                const clientes = await res.json();
-                const select = document.getElementById('selectCliente');
-                clientes.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = c.nombre;
-                    select.appendChild(opt);
-                });
-            } catch (err) {
-                console.error("Error cargando clientes:", err);
-            }
-        });
-
         async function emitirPrestamoReal() {
             const clienteId = document.getElementById('selectCliente').value;
             const frecuencia = document.getElementById('selectFrecuencia').value;

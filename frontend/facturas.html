@@ -58,6 +58,16 @@
 <div id="modalFactura" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
   <div class="panel p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
     <h2 class="text-lg font-semibold mb-4">Nueva factura</h2>
+
+    <div class="p-3 mb-4 rounded-lg" style="background:var(--panel-2); border:1px solid var(--border);">
+      <label class="text-xs" style="color:var(--text-dim)">Llenado rápido — escribe "Nombre del cliente, monto, frecuencia" y presiona Llenar</label>
+      <div class="flex flex-col sm:flex-row gap-2 mt-1">
+        <input id="llenadoRapidoTexto" class="w-full" placeholder="Ej: Juan Pérez, 5000, quincenal" />
+        <button type="button" class="btn-ghost whitespace-nowrap" onclick="llenarRapido()">Llenar</button>
+      </div>
+      <p class="text-xs mt-1" style="color:var(--text-dim)">Frecuencia: diario, quincenal o mensual (si no la escribes, queda en mensual).</p>
+    </div>
+
     <form id="formFactura" class="space-y-3">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
@@ -69,9 +79,19 @@
           <input type="date" id="fecha_vencimiento" required class="w-full mt-1" />
         </div>
       </div>
-      <div>
-        <label class="text-xs" style="color:var(--text-dim)">Número de cuotas (1 = pago único)</label>
-        <input type="number" id="numero_cuotas" value="1" min="1" class="w-full mt-1" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Frecuencia de cobro</label>
+          <select id="frecuencia_pago" class="w-full mt-1">
+            <option value="diario">Diario</option>
+            <option value="quincenal">Quincenal (15 y 30)</option>
+            <option value="mensual" selected>Mensual</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Número de cuotas (1 = pago único)</label>
+          <input type="number" id="numero_cuotas" value="1" min="1" class="w-full mt-1" />
+        </div>
       </div>
 
       <div class="pt-2">
@@ -163,9 +183,64 @@ function agregarItem() {
   document.getElementById("itemsContainer").appendChild(div);
 }
 
+let clientesCache = [];
 async function cargarClientesSelect() {
-  const clientes = await api("/api/clientes?activo=true");
-  document.getElementById("cliente_id").innerHTML = clientes.map(c => `<option value="${c.id}">${c.razon_social}</option>`).join("");
+  clientesCache = await api("/api/clientes?activo=true");
+  document.getElementById("cliente_id").innerHTML = clientesCache.map(c => `<option value="${c.id}">${c.razon_social}</option>`).join("");
+}
+
+function normalizar(txt) {
+  return (txt || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function calcularVencimiento(frecuencia) {
+  const hoy = new Date();
+  if (frecuencia === "diario") hoy.setDate(hoy.getDate() + 1);
+  else if (frecuencia === "quincenal") hoy.setDate(hoy.getDate() + 15);
+  else hoy.setMonth(hoy.getMonth() + 1);
+  return hoy.toISOString().slice(0, 10);
+}
+
+function llenarRapido() {
+  const texto = document.getElementById("llenadoRapidoTexto").value;
+  if (!texto || !texto.trim()) { toast("Escribe algo primero, ej: Juan Pérez, 5000, quincenal", "error"); return; }
+
+  const partes = texto.split(",").map(p => p.trim()).filter(Boolean);
+  const nombreBuscado = normalizar(partes[0] || "");
+  const montoTexto = (partes[1] || "").replace(/[^\d.]/g, "");
+  const monto = parseFloat(montoTexto);
+  const frecuenciaTexto = normalizar(partes[2] || "mensual");
+
+  let frecuencia = "mensual";
+  if (frecuenciaTexto.startsWith("diari")) frecuencia = "diario";
+  else if (frecuenciaTexto.startsWith("quincen")) frecuencia = "quincenal";
+  else if (frecuenciaTexto.startsWith("mensual")) frecuencia = "mensual";
+
+  // Busca cliente por coincidencia parcial del nombre, sin importar tildes/mayúsculas
+  const coincidencias = nombreBuscado
+    ? clientesCache.filter(c => normalizar(c.razon_social).includes(nombreBuscado))
+    : [];
+
+  if (nombreBuscado && coincidencias.length === 1) {
+    document.getElementById("cliente_id").value = coincidencias[0].id;
+  } else if (nombreBuscado && coincidencias.length > 1) {
+    toast(`Hay ${coincidencias.length} clientes que coinciden con "${partes[0]}" — selecciónalo manualmente`, "error");
+  } else if (nombreBuscado && coincidencias.length === 0) {
+    toast(`No encontré ningún cliente parecido a "${partes[0]}" — créalo primero en Clientes`, "error");
+  }
+
+  document.getElementById("frecuencia_pago").value = frecuencia;
+  document.getElementById("fecha_vencimiento").value = calcularVencimiento(frecuencia);
+
+  if (!isNaN(monto) && monto > 0) {
+    if (document.querySelectorAll("#itemsContainer .item-row").length === 0) agregarItem();
+    const filaActual = document.querySelectorAll("#itemsContainer .item-row")[0];
+    if (!filaActual.querySelector(".item-desc").value) filaActual.querySelector(".item-desc").value = "Préstamo / Venta";
+    filaActual.querySelector(".item-cant").value = 1;
+    filaActual.querySelector(".item-precio").value = monto;
+  }
+
+  toast("Formulario llenado — revisa los datos antes de emitir");
 }
 
 document.getElementById("formFactura").addEventListener("submit", async (e) => {
@@ -182,6 +257,7 @@ document.getElementById("formFactura").addEventListener("submit", async (e) => {
     await api("/api/facturas", { method: "POST", body: {
       cliente_id: parseInt(document.getElementById("cliente_id").value),
       fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
+      frecuencia_pago: document.getElementById("frecuencia_pago").value,
       numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
       items,
     }});

@@ -27,7 +27,17 @@
       </div>
       <div>
         <label class="text-xs" style="color:var(--text-dim)">Contraseña</label>
-        <input type="password" id="password" required class="w-full mt-1" placeholder="••••••••" />
+        <div class="relative mt-1">
+          <input type="password" id="password" required class="w-full pr-10" placeholder="••••••••" />
+          <button type="button" id="togglePassword" aria-label="Mostrar contraseña"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-1"
+            style="color:var(--text-dim); background:transparent; border:none; cursor:pointer;">
+            <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
       </div>
       <button type="submit" class="btn-primary w-full">Entrar</button>
       <p id="errorMsg" class="text-sm text-center hidden" style="color:var(--danger-2)"></p>
@@ -39,6 +49,20 @@
   </div>
 
 <script src="static/js/app.js"></script>
+<script>
+document.getElementById("togglePassword").addEventListener("click", () => {
+  const input = document.getElementById("password");
+  const icon = document.getElementById("eyeIcon");
+  const mostrando = input.type === "text";
+  input.type = mostrando ? "password" : "text";
+  document.getElementById("togglePassword").setAttribute(
+    "aria-label", mostrando ? "Mostrar contraseña" : "Ocultar contraseña"
+  );
+  icon.innerHTML = mostrando
+    ? `<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"></path><circle cx="12" cy="12" r="3"></circle>`
+    : `<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a20.3 20.3 0 0 1 4.22-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a20.3 20.3 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><path d="M1 1l22 22"></path>`;
+});
+</script>
 <script>
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();

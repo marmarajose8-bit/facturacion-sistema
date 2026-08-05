@@ -28,7 +28,7 @@
         <div class="flex justify-between items-center mb-6">
             <div>
                 <h2 class="text-2xl font-bold">Facturas</h2>
-                <p class="text-sm text-gray-400">Emisión, cuotas y estado de cobro con cálculo automático</p>
+                <p class="text-sm text-gray-400">Emisión, cuotas y estado de cobro por cliente</p>
             </div>
             <button onclick="abrirModal('modalNuevaFactura')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium">+ Nueva factura</button>
         </div>
@@ -52,6 +52,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800" id="tabla-facturas">
+                        <!-- Fila 1: José -->
                         <tr class="hover:bg-slate-800/40" data-id="FAC-000001">
                             <td class="px-4 py-3 font-medium text-white td-factura">FAC-000001</td>
                             <td class="px-4 py-3 td-cliente">jose gregorio manan santan</td>
@@ -70,6 +71,25 @@
                                 <button onclick="alert('Enviando enlace por WhatsApp...')" class="text-green-400 hover:underline">WhatsApp</button>
                             </td>
                         </tr>
+                        <!-- Fila 2: Juan -->
+                        <tr class="hover:bg-slate-800/40" data-id="FAC-000002">
+                            <td class="px-4 py-3 font-medium text-white td-factura">FAC-000002</td>
+                            <td class="px-4 py-3 td-cliente">juan perez diaz</td>
+                            <td class="px-4 py-3 text-gray-400">10 ago de 2026</td>
+                            <td class="px-4 py-3 text-white font-semibold val-total">RD$11,500.00</td>
+                            <td class="px-4 py-3 text-blue-400 font-semibold val-interes">15%</td>
+                            <td class="px-4 py-3 text-green-400 val-abonado">RD$0.00</td>
+                            <td class="px-4 py-3 text-amber-400 font-semibold val-saldo">RD$11,500.00</td>
+                            <td class="px-4 py-3 td-cuota">Cuota 1 de 6</td>
+                            <td class="px-4 py-3"><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold val-estado">PENDIENTE</span></td>
+                            <td class="px-4 py-3"><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold">AL DIA</span></td>
+                            <td class="px-4 py-3 space-x-2">
+                                <button onclick="prepararAccion('FAC-000002', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
+                                <button onclick="prepararAccion('FAC-000002', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
+                                <button onclick="alert('Generando PDF...')" class="text-gray-400 hover:underline">PDF</button>
+                                <button onclick="alert('Enviando enlace por WhatsApp...')" class="text-green-400 hover:underline">WhatsApp</button>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -83,7 +103,7 @@
             <form onsubmit="emitirNuevaFactura(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Cliente</label>
-                    <input type="text" id="input-cliente-nombre" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="jose gregorio manan santan" required>
+                    <input type="text" id="input-cliente-nombre" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="Nombre del cliente" required>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -111,7 +131,7 @@
                 </div>
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Monto del préstamo (Capital)</label>
-                    <input type="number" id="input-capital" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="20000" required>
+                    <input type="number" id="input-capital" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="20000" required>
                 </div>
                 <div class="flex justify-between items-center pt-2">
                     <button type="button" onclick="cerrarModal('modalNuevaFactura')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
@@ -125,7 +145,7 @@
     <div id="modalCobrar" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h3 class="text-lg font-bold mb-1 text-blue-400">Registrar Cobro / Abono</h3>
-            <p class="text-xs text-gray-400 mb-4" id="info-cobro-cliente">Factura: FAC-000001</p>
+            <p class="text-xs text-gray-400 mb-4" id="info-cobro-cliente">Seleccione un cliente</p>
             <form onsubmit="registrarCobro(event)" class="space-y-4">
                 <input type="hidden" id="cobro-factura-id">
                 <div>
@@ -144,7 +164,7 @@
     <div id="modalReenganchar" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h3 class="text-lg font-bold mb-1 text-yellow-400">Reenganchar Préstamo</h3>
-            <p class="text-xs text-gray-400 mb-4" id="info-reenganche-cliente">Factura: FAC-000001</p>
+            <p class="text-xs text-gray-400 mb-4" id="info-reenganche-cliente">Seleccione un cliente</p>
             <form onsubmit="registrarReenganche(event)" class="space-y-4">
                 <input type="hidden" id="reenganche-factura-id">
                 <div>
@@ -191,21 +211,36 @@
 
             let ganancia = capital * (interes / 100);
             let total = capital + ganancia;
-            let saldo = total;
+            let nuevoId = 'FAC-0000' + (document.querySelectorAll('#tabla-facturas tr').length + 1);
 
-            let fila = document.querySelector('tr[data-id="FAC-000001"]');
-            fila.querySelector('.td-cliente').innerText = clienteNom;
-            fila.querySelector('.val-total').innerText = 'RD$' + total.toLocaleString('en-US', {minimumFractionDigits: 2});
-            fila.querySelector('.val-interes').innerText = interes + '%';
-            fila.querySelector('.val-abonado').innerText = 'RD$0.00';
-            fila.querySelector('.val-saldo').innerText = 'RD$' + saldo.toLocaleString('en-US', {minimumFractionDigits: 2});
-            fila.querySelector('.td-cuota').innerText = 'Cuota 1 de ' + cuotasNum;
-            let est = fila.querySelector('.val-estado');
-            est.innerText = 'PENDIENTE';
-            est.className = 'bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold val-estado';
+            let tbody = document.getElementById('tabla-facturas');
+            let nuevaFila = document.createElement('tr');
+            nuevaFila.className = 'hover:bg-slate-800/40';
+            nuevaFila.setAttribute('data-id', nuevoId);
+            nuevaFila.innerHTML = `
+                <td class="px-4 py-3 font-medium text-white td-factura">${nuevoId}</td>
+                <td class="px-4 py-3 td-cliente">${clienteNom}</td>
+                <td class="px-4 py-3 text-gray-400">4 ago de 2026</td>
+                <td class="px-4 py-3 text-white font-semibold val-total">RD$${total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="px-4 py-3 text-blue-400 font-semibold val-interes">${interes}%</td>
+                <td class="px-4 py-3 text-green-400 val-abonado">RD$0.00</td>
+                <td class="px-4 py-3 text-amber-400 font-semibold val-saldo">RD$${total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="px-4 py-3 td-cuota">Cuota 1 de ${cuotasNum}</td>
+                <td class="px-4 py-3"><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold val-estado">PENDIENTE</span></td>
+                <td class="px-4 py-3"><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold">AL DIA</span></td>
+                <td class="px-4 py-3 space-x-2">
+                    <button onclick="prepararAccion('${nuevoId}', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
+                    <button onclick="prepararAccion('${nuevoId}', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
+                    <button onclick="alert('Generando PDF...')" class="text-gray-400 hover:underline">PDF</button>
+                    <button onclick="alert('Enviando enlace por WhatsApp...')" class="text-green-400 hover:underline">WhatsApp</button>
+                </td>
+            `;
+            tbody.appendChild(nuevaFila);
 
-            alert('¡Factura emitida correctamente con el ' + interes + '% de interés!');
+            alert(`¡Factura ${nuevoId} emitida correctamente para ${clienteNom} con ${interes}% de interés!`);
             cerrarModal('modalNuevaFactura');
+            document.getElementById('input-capital').value = '';
+            document.getElementById('input-cliente-nombre').value = '';
         }
 
         function registrarCobro(e) {
@@ -263,7 +298,7 @@
             totalElem.innerText = 'RD$' + totalActual.toLocaleString('en-US', {minimumFractionDigits: 2});
             saldoElem.innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
 
-            alert(`Préstamo reenganchado con éxito para la factura ${facturaId}. Se sumaron RD$${montoAdicional.toLocaleString()} de capital.`);
+            alert(`Préstamo reenganchado con éxito para ${facturaId}. Se sumaron RD$${montoAdicional.toLocaleString()} de capital.`);
             cerrarModal('modalReenganchar');
             document.getElementById('monto-reenganchar').value = '';
         }

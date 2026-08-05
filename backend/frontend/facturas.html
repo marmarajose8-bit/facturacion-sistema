@@ -56,10 +56,10 @@
                             <td class="px-4 py-3 font-medium text-white td-factura">FAC-000001</td>
                             <td class="px-4 py-3 td-cliente">jose gregorio manan santan</td>
                             <td class="px-4 py-3 text-gray-400 td-vencimiento">4 ago de 2026</td>
-                            <td class="px-4 py-3 text-white font-semibold val-total">RD$20,000.00</td>
+                            <td class="px-4 py-3 text-white font-semibold val-total">RD$31,050.00</td>
                             <td class="px-4 py-3 text-blue-400 font-semibold val-interes">15%</td>
                             <td class="px-4 py-3 text-green-400 val-abonado">RD$5,000.00</td>
-                            <td class="px-4 py-3 text-amber-400 font-semibold val-saldo">RD$15,000.00</td>
+                            <td class="px-4 py-3 text-amber-400 font-semibold val-saldo">RD$26,050.00</td>
                             <td class="px-4 py-3 td-cuota">Cuota 1 de 1</td>
                             <td class="px-4 py-3"><span class="bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold val-estado">PARCIAL</span></td>
                             <td class="px-4 py-3"><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold">AL DIA</span></td>
@@ -111,7 +111,7 @@
                 </div>
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Monto del préstamo</label>
-                    <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="20000">
+                    <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="27000">
                 </div>
                 <div class="flex justify-between items-center pt-2">
                     <button type="button" onclick="cerrarModal('modalNuevaFactura')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
@@ -128,7 +128,7 @@
             <form onsubmit="registrarCobro(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Monto a Abonar (RD$)</label>
-                    <input type="number" id="monto-abonar" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="2000" required>
+                    <input type="number" id="monto-abonar" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="10000" required>
                 </div>
                 <div class="flex justify-end space-x-2 pt-2">
                     <button type="button" onclick="cerrarModal('modalCobrar')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
@@ -157,8 +157,8 @@
 
     <script>
         let abonadoActual = 5000;
-        let saldoActual = 15000;
-        let totalActual = 20000;
+        let saldoActual = 26050;
+        let totalActual = 31050;
 
         function abrirModal(id) {
             document.getElementById(id).classList.remove('hidden');
@@ -182,7 +182,7 @@
             }
 
             abonadoActual += monto;
-            saldoActual = Math.max(0, saldoActual - monto);
+            saldoActual = Math.max(0, saldoActual - monto); // Se resta exactamente del saldo actual de la deuda
             
             document.querySelector('.val-abonado').innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
             document.querySelector('.val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
@@ -196,7 +196,7 @@
                 estadoElem.className = 'bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold val-estado';
             }
 
-            alert('Cobro registrado correctamente');
+            alert('Cobro registrado correctamente. El saldo ha bajado en base a la deuda actual.');
             cerrarModal('modalCobrar');
             document.getElementById('monto-abonar').value = '';
         }
@@ -215,7 +215,6 @@
             document.getElementById('monto-reenganchar').value = '';
         }
 
-        // Función para descargar factura en formato limpio
         function descargarFactura(facturaId) {
             let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
             let cliente = fila.querySelector('.td-cliente').innerText;
@@ -233,7 +232,7 @@
                     <hr/>
                     <p><strong>Cliente:</strong> ${cliente}</p>
                     <p><strong>Vencimiento:</strong> ${vencimiento}</p>
-                    <p><strong>Total Préstamo:</strong> ${total}</p>
+                    <p><strong>Total Deuda:</strong> ${total}</p>
                     <p><strong>Abonado:</strong> ${abonado}</p>
                     <p><strong>Saldo Pendiente:</strong> ${saldo}</p>
                     <hr/>
@@ -247,7 +246,6 @@
             setTimeout(() => { ventana.print(); }, 300);
         }
 
-        // Función para compartir por WhatsApp
         function compartirWhatsApp(facturaId) {
             let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
             let cliente = fila.querySelector('.td-cliente').innerText;
@@ -257,7 +255,7 @@
 
             let mensaje = `Hola *${cliente}*, le escribimos de *RYM Inversiones* con los datos de su factura *${facturaId}*:\n\n` +
                           `📅 Vencimiento: ${vencimiento}\n` +
-                          `💰 Total: ${total}\n` +
+                          `💰 Total Deuda: ${total}\n` +
                           `📌 Saldo Pendiente: *${saldo}*\n\n` +
                           `¡Muchas gracias por preferirnos!`;
 

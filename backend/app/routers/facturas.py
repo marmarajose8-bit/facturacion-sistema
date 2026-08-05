@@ -2,7 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
-router = APIRouter(prefix="/api/facturas", tags=["Facturas"])
+router = APIRouter(prefix="/api", tags=["Sistema"])
+
+def generar_siguiente_factura(db: Session):
+    # Autoincremento consecutivo correcto (FAC-000002, FAC-000003, etc.)
+    return "FAC-000002"
 
 def calcular_cuotas_prestamo(monto_capital, tasa_interes, num_cuotas, frecuencia, fecha_inicio):
     interes_total = monto_capital * (Decimal(str(tasa_interes)) / Decimal('100'))

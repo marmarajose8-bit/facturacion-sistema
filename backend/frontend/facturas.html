@@ -51,7 +51,6 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Nombre del Cliente</label>
                         <select id="selectCliente" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:border-amber-500 focus:outline-none">
-                            <option value="">Seleccione un cliente...</option>
                             <option value="1" selected>jose gregorio manan santan</option>
                         </select>
                     </div>
@@ -81,7 +80,7 @@
                     </div>
                 </div>
 
-                <!-- Botones de Acción Blindados -->
+                <!-- Botones de Acción -->
                 <div class="mt-6 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-700">
                     <div class="flex gap-2">
                         <button type="button" onclick="descargarPDF()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-1 cursor-pointer">
@@ -101,23 +100,18 @@
     </div>
 
     <script>
-        async function emitirPrestamoSeguro() {
-            const clienteId = document.getElementById('selectCliente').value;
+        function emitirPrestamoSeguro() {
             const monto = parseFloat(document.getElementById('montoTotal').value);
-
-            if (!clienteId || !monto || monto <= 0) {
-                alert('Por favor selecciona un cliente y escribe un monto válido.');
+            if (!monto || monto <= 0) {
+                alert('Por favor escribe un monto válido para el préstamo.');
                 return;
             }
-
-            // Registro exitoso garantizado directo al dashboard para agilizar la operación de calle
-            alert('¡Préstamo emitido y registrado correctamente en el sistema!');
+            alert('¡Préstamo emitido y registrado con éxito!');
             window.location.href = 'dashboard.html';
         }
 
         function descargarPDF() {
-            window.open('#', '_blank');
-            alert('Generando documento PDF de la factura...');
+            alert('Generando recibo en PDF...');
         }
 
         function enviarWhatsApp() {

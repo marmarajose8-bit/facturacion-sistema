@@ -1,9 +1,12 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 from decimal import Decimal
+
+router = APIRouter(prefix="/api/facturas", tags=["Facturas"])
 
 def calcular_cuotas_prestamo(monto_capital, tasa_interes, num_cuotas, frecuencia, fecha_inicio):
     interes_total = monto_capital * (Decimal(str(tasa_interes)) / Decimal('100'))
     monto_total = monto_capital + interes_total
-    valor_cuota = monto_total / num_cuotas
     
     cuotas = []
     for i in range(1, num_cuotas + 1):

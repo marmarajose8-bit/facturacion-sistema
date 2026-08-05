@@ -1,4 +1,5 @@
 import enum
+from decimal import Decimal
 from sqlalchemy import (
     Column, Integer, String, Numeric, DateTime, ForeignKey, Enum, Text, Date
 )
@@ -66,6 +67,48 @@ class Factura(Base):
     items = relationship("FacturaItem", back_populates="factura", cascade="all, delete-orphan")
     cuotas = relationship("Cuota", back_populates="factura", cascade="all, delete-orphan")
     pagos = relationship("Pago", back_populates="factura")
+
+    # --- Propiedades calculadas para el resumen de cuenta del cliente ---
+    # No se guardan en columnas propias: se derivan de los pagos/cuotas ya
+    # existentes en cada consulta, así nunca quedan desactualizadas.
+
+    @property
+    def total_abonado(self) -> Decimal:
+        """Total acumulado que el cliente ha pagado hasta la fecha en esta factura."""
+        return sum((Decimal(p.monto_total) for p in self.pagos), Decimal("0"))
+
+    @property
+    def saldo_pendiente(self) -> Decimal:
+        """Lo que le falta exactamente por pagar (capital + interés + mora vigentes)."""
+        return Decimal(self.saldo_capital) + Decimal(self.interes_acumulado) + Decimal(self.recargo_mora)
+
+    @property
+    def total_cuotas(self) -> int:
+        """Plazo total del préstamo en número de cuotas (mínimo 1, aunque sea pago único)."""
+        return len(self.cuotas) if self.cuotas else 1
+
+    @property
+    def cuotas_pagadas(self) -> int:
+        return sum(1 for c in self.cuotas if c.estado == EstadoFactura.pagada)
+
+    @property
+    def cuota_actual(self) -> int:
+        """En qué número de cuota va el cliente (la primera pendiente; si ya
+        pagó todas, se queda en la última)."""
+        if not self.cuotas:
+            return 1
+        if self.estado == EstadoFactura.pagada:
+            return self.total_cuotas
+        pendientes = sorted(
+            (c for c in self.cuotas if c.estado != EstadoFactura.pagada),
+            key=lambda c: c.numero_cuota,
+        )
+        return pendientes[0].numero_cuota if pendientes else self.total_cuotas
+
+    @property
+    def texto_cuota(self) -> str:
+        """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'."""
+        return f"Cuota {self.cuota_actual} de {self.total_cuotas}"
 
 
 class FacturaItem(Base):

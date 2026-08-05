@@ -61,7 +61,7 @@ def listar_facturas(
     estado_mora: Optional[str] = None,
 ):
     query = db.query(Factura).options(
-        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.cliente)
+        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.cliente), joinedload(Factura.pagos)
     )
     if cliente_id:
         query = query.filter(Factura.cliente_id == cliente_id)
@@ -146,7 +146,7 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
 @router.get("/{factura_id}", response_model=FacturaOut)
 def obtener_factura(factura_id: int, db: Session = Depends(get_db)):
     factura = db.query(Factura).options(
-        joinedload(Factura.items), joinedload(Factura.cuotas)
+        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.pagos)
     ).get(factura_id)
     if not factura:
         raise HTTPException(404, "Factura no encontrada")

@@ -26,66 +26,59 @@
         <!-- Main Content -->
         <main class="flex-1 p-6">
             <header class="mb-6">
-                <h1 class="text-2xl font-bold">Facturas y Préstamos</h1>
-                <p class="text-sm text-gray-400">Control de cobros, capital e intereses de la calle</p>
+                <h1 class="text-2xl font-bold">Emitir Préstamo o Factura</h1>
+                <p class="text-sm text-gray-400">Panel de control y registro rápido de cobros</p>
             </header>
 
-            <!-- Formulario de Autocompletado Inteligente -->
-            <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-6 shadow-lg">
-                <h2 class="text-lg font-semibold mb-2 text-amber-400">⚡ Llenado Rápido (Modo Calle)</h2>
-                <p class="text-xs text-gray-400 mb-3">Escribe en una sola línea: <b>Nombre, Capital, Porcentaje (5, 10, 15, 20), Frecuencia</b> (Ej: <i>Juan Pérez, 10000, 20, quincenal</i>)</p>
-                
-                <input type="text" id="smartFillInput" placeholder="Ej: Juan Pérez, 10000, 20, quincenal" 
-                    class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:border-amber-500 focus:outline-none mb-4">
+            <!-- Formulario Claro y Explicativo para la Operadora -->
+            <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-6 shadow-lg max-w-2xl">
+                <h2 class="text-lg font-semibold mb-2 text-amber-400">💡 Guía de Uso Rápido</h2>
+                <p class="text-xs text-gray-300 mb-4 bg-gray-900 p-3 rounded border border-gray-600">
+                    <b>Paso 1:</b> Selecciona el cliente.<br>
+                    <b>Paso 2:</b> Elige cada cuánto pagará (Semanal, Quincenal o Mensual).<br>
+                    <b>Paso 3:</b> Escribe el concepto y el monto total a cobrar. ¡Listo!
+                </p>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="space-y-4">
                     <div>
-                        <label class="block text-xs text-gray-400 mb-1">Cliente</label>
-                        <input type="text" id="inputCliente" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white" placeholder="Nombre del cliente">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Frecuencia de Cobro</label>
-                        <select id="selectFrecuencia" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white">
-                            <option value="Semanal">Semanal</option>
-                            <option value="Quincenal">Quincenal (15 y 30)</option>
-                            <option value="Mensual">Mensual</option>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Nombre del Cliente</label>
+                        <select id="selectCliente" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white">
+                            <option value="">Seleccione un cliente...</option>
+                            <option value="1">jose gregorio manan santan</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Total a Cobrar (Capital + Interés)</label>
-                        <input type="number" id="inputTotal" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white font-bold text-amber-400" placeholder="0.00">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">¿Cómo pagará? (Frecuencia)</label>
+                            <select id="selectFrecuencia" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white">
+                                <option value="Semanal">Semanal</option>
+                                <option value="Quincenal">Quincenal (15 y 30)</option>
+                                <option value="Mensual">Mensual</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Fecha de Vencimiento</label>
+                            <input type="date" id="fechaVencimiento" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white">
+                        </div>
+                    </div>
+
+                    <!-- Sustitución de "Ítems técnicos" por concepto claro -->
+                    <div class="bg-gray-900 p-4 rounded border border-gray-700">
+                        <label class="block text-sm font-bold text-amber-400 mb-1">📝 Concepto del Préstamo</label>
+                        <input type="text" id="conceptoPrestamo" value="Préstamo personal" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mb-3" placeholder="Ej: Préstamo del mes">
+
+                        <label class="block text-sm font-bold text-amber-400 mb-1">💰 Monto Total a Cobrar (RD$)</label>
+                        <input type="number" id="montoTotal" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-lg font-bold text-amber-300" placeholder="0.00">
                     </div>
                 </div>
 
-                <div class="mt-4 flex justify-end">
-                    <button onclick="alert('Préstamo preparado para emitir')" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded font-medium text-sm transition">Emitir Factura</button>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">Cancelar</button>
+                    <button type="button" onclick="alert('¡Préstamo emitido correctamente!')" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm">Emitir Préstamo</button>
                 </div>
             </div>
         </main>
     </div>
-
-    <script>
-        document.getElementById('smartFillInput').addEventListener('input', function(e) {
-            const val = e.target.value;
-            const partes = val.split(',').map(p => p.trim());
-            
-            if (partes.length >= 3) {
-                document.getElementById('inputCliente').value = partes[0];
-                const capital = parseFloat(partes[1]) || 0;
-                const porc = parseFloat(partes[2]) || 0;
-                const freq = (partes[3] || '').toLowerCase();
-
-                // Cálculo callejero: Capital + (Capital * Porcentaje / 100)
-                const totalConInteres = capital + (capital * (porc / 100));
-                document.getElementById('inputTotal').value = totalConInteres;
-
-                // Frecuencia automática limpia
-                const sel = document.getElementById('selectFrecuencia');
-                if (freq.includes('sem')) sel.value = 'Semanal';
-                else if (freq.includes('quin') || freq.includes('15')) sel.value = 'Quincenal (15 y 30)';
-                else sel.value = 'Mensual';
-            }
-        });
-    </script>
 </body>
 </html>

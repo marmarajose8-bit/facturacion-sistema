@@ -10,23 +10,29 @@
 </head>
 <body class="min-h-screen bg-gray-900 text-gray-100">
     <div class="flex flex-col md:flex-row min-h-screen">
-        <!-- Sidebar -->
-        <aside class="w-full md:w-60 bg-gray-800 p-4 border-r border-gray-700">
-            <div class="flex items-center gap-2 mb-6">
-                <span class="text-xl font-bold text-amber-500">RYM Inversiones</span>
+        <!-- Sidebar Original con Logo y Colores de RYM -->
+        <aside class="w-full md:w-60 bg-gray-800 p-4 border-r border-gray-700 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-8 px-2">
+                    <img src="static/img/logo-rym.jpeg" alt="RYM Inversiones" class="w-10 h-10 rounded-full object-cover border border-amber-500">
+                    <span class="text-lg font-bold text-amber-500">RYM Inversiones</span>
+                </div>
+                <nav class="space-y-1">
+                    <a href="dashboard.html" class="block px-3 py-2 rounded hover:bg-gray-700 text-gray-300">Dashboard</a>
+                    <a href="clientes.html" class="block px-3 py-2 rounded hover:bg-gray-700 text-gray-300">Clientes</a>
+                    <a href="facturas.html" class="block px-3 py-2 rounded bg-amber-600 text-white font-medium">Facturas</a>
+                    <a href="cartera.html" class="block px-3 py-2 rounded hover:bg-gray-700 text-gray-300">Cartera y Mora</a>
+                </nav>
             </div>
-            <nav class="space-y-1">
-                <a href="dashboard.html" class="block px-3 py-2 rounded hover:bg-gray-700">Dashboard</a>
-                <a href="clientes.html" class="block px-3 py-2 rounded hover:bg-gray-700">Clientes</a>
-                <a href="facturas.html" class="block px-3 py-2 rounded bg-amber-600 text-white font-medium">Facturas</a>
-                <a href="cartera.html" class="block px-3 py-2 rounded hover:bg-gray-700">Cartera y Mora</a>
-            </nav>
+            <div class="pt-4 border-t border-gray-700">
+                <a href="index.html" class="block px-3 py-2 rounded text-red-400 hover:bg-gray-700 text-sm">Salir</a>
+            </div>
         </aside>
 
         <!-- Main Content -->
         <main class="flex-1 p-6">
             <header class="mb-6">
-                <h1 class="text-2xl font-bold">Emitir Préstamo o Factura</h1>
+                <h1 class="text-2xl font-bold text-white">Emitir Préstamo o Factura</h1>
                 <p class="text-sm text-gray-400">Panel de control y registro rápido de cobros</p>
             </header>
 
@@ -42,7 +48,7 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Nombre del Cliente</label>
-                        <select id="selectCliente" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white">
+                        <select id="selectCliente" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:border-amber-500 focus:outline-none">
                             <option value="">Seleccione un cliente...</option>
                             <option value="1">jose gregorio manan santan</option>
                         </select>
@@ -51,7 +57,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">¿Cómo pagará? (Frecuencia)</label>
-                            <select id="selectFrecuencia" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white">
+                            <select id="selectFrecuencia" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:border-amber-500 focus:outline-none">
                                 <option value="Semanal">Semanal</option>
                                 <option value="Quincenal">Quincenal (15 y 30)</option>
                                 <option value="Mensual">Mensual</option>
@@ -59,23 +65,23 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">Fecha de Vencimiento</label>
-                            <input type="date" id="fechaVencimiento" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white">
+                            <input type="date" id="fechaVencimiento" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:border-amber-500 focus:outline-none">
                         </div>
                     </div>
 
-                    <!-- Concepto predeterminado pero 100% editable -->
+                    <!-- Concepto predeterminado pero editable -->
                     <div class="bg-gray-900 p-4 rounded border border-gray-700">
                         <label class="block text-sm font-bold text-amber-400 mb-1">📝 Descripción Predeterminada (Puedes cambiarla si deseas)</label>
-                        <input type="text" id="conceptoPrestamo" value="Préstamo personal con interés de la calle" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mb-3" placeholder="Escribe o modifica la descripción aquí...">
+                        <input type="text" id="conceptoPrestamo" value="Préstamo personal con interés de la calle" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mb-3 focus:border-amber-500 focus:outline-none" placeholder="Escribe o modifica la descripción aquí...">
 
                         <label class="block text-sm font-bold text-amber-400 mb-1">💰 Monto Total a Cobrar (RD$)</label>
-                        <input type="number" id="montoTotal" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-lg font-bold text-amber-300" placeholder="0.00">
+                        <input type="number" id="montoTotal" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-lg font-bold text-amber-300 focus:border-amber-500 focus:outline-none" placeholder="0.00">
                     </div>
                 </div>
 
                 <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">Cancelar</button>
-                    <button type="button" onclick="alert('¡Préstamo emitido correctamente!')" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm">Emitir Préstamo</button>
+                    <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition">Cancelar</button>
+                    <button type="button" onclick="alert('¡Préstamo emitido correctamente!')" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm transition">Emitir Préstamo</button>
                 </div>
             </div>
         </main>

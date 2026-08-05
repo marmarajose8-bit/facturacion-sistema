@@ -96,8 +96,11 @@
 
       <div class="pt-2">
         <div class="flex items-center justify-between mb-2">
-          <label class="text-xs" style="color:var(--text-dim)">Ítems de la factura</label>
-          <button type="button" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar ítem</button>
+          <label class="text-xs" style="color:var(--text-dim)">Monto del préstamo</label>
+          <div class="flex items-center gap-3">
+            <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="toggleAvanzado()">opciones avanzadas</button>
+            <button type="button" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar otro concepto</button>
+          </div>
         </div>
         <div id="itemsContainer" class="space-y-2"></div>
       </div>
@@ -121,23 +124,14 @@
         <input type="number" step="0.01" id="pago_monto" required class="w-full mt-1" oninput="actualizarVuelto()" />
       </div>
       <p id="pago_vuelto_info" class="text-sm hidden" style="color:var(--accent)"></p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="text-xs" style="color:var(--text-dim)">Tipo</label>
-          <select id="pago_tipo" class="w-full mt-1">
-            <option value="abono">Abono</option>
-            <option value="total">Pago total</option>
-          </select>
-        </div>
-        <div>
-          <label class="text-xs" style="color:var(--text-dim)">Método</label>
-          <select id="pago_metodo" class="w-full mt-1" onchange="actualizarVuelto()">
-            <option value="efectivo">Efectivo</option>
-            <option value="transferencia">Transferencia</option>
-            <option value="tarjeta">Tarjeta</option>
-            <option value="cheque">Cheque</option>
-          </select>
-        </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Método de pago</label>
+        <select id="pago_metodo" class="w-full mt-1" onchange="actualizarVuelto()">
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia</option>
+          <option value="tarjeta">Tarjeta</option>
+          <option value="cheque">Cheque</option>
+        </select>
       </div>
       <div>
         <label class="text-xs" style="color:var(--text-dim)">Referencia (opcional)</label>
@@ -192,7 +186,16 @@ document.getElementById("usuarioNombre").textContent = Auth.getUsuario()?.nombre
 const urlParams = new URLSearchParams(window.location.search);
 const clienteFiltro = urlParams.get("cliente_id");
 
-function abrirModalFactura() { document.getElementById("modalFactura").classList.remove("hidden"); document.getElementById("modalFactura").classList.add("flex"); cargarClientesSelect(); }
+function abrirModalFactura() {
+  document.getElementById("modalFactura").classList.remove("hidden");
+  document.getElementById("modalFactura").classList.add("flex");
+  cargarClientesSelect();
+  // Siempre arranca con una fila lista para llenar, para no depender de que
+  // recuerden hacer clic en "+ agregar" antes de poder escribir el monto.
+  document.getElementById("itemsContainer").innerHTML = "";
+  itemCount = 0;
+  agregarItem();
+}
 function cerrarModalFactura() { document.getElementById("modalFactura").classList.add("hidden"); document.getElementById("modalFactura").classList.remove("flex"); }
 function abrirModalPago(facturaId) {
   document.getElementById("pago_factura_id").value = facturaId;
@@ -262,15 +265,30 @@ function agregarItem() {
   itemCount++;
   const id = itemCount;
   const div = document.createElement("div");
-  div.className = "grid grid-cols-12 gap-2 items-center item-row";
+  div.className = "item-row p-2 rounded-lg";
+  div.style.border = "1px solid var(--border)";
   div.innerHTML = `
-    <input class="col-span-5 item-desc" placeholder="Descripción (opcional — si se deja vacío usa 'Préstamo personal')" />
-    <input type="number" step="0.01" class="col-span-2 item-cant" placeholder="Cant." value="1" required />
-    <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Precio unit." required />
-    <input type="number" step="0.01" class="col-span-1 item-imp" placeholder="% imp." value="0" />
-    <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.parentElement.remove()">✕</button>
+    <div class="grid grid-cols-12 gap-2 items-center">
+      <input class="col-span-8 item-desc" placeholder="Descripción (opcional)" />
+      <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Monto" required />
+      <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.closest('.item-row').remove()">✕</button>
+    </div>
+    <div class="item-avanzado hidden grid grid-cols-2 gap-2 items-center mt-2">
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Cantidad</label>
+        <input type="number" step="0.01" class="w-full mt-1 item-cant" value="1" />
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">% impuesto</label>
+        <input type="number" step="0.01" class="w-full mt-1 item-imp" value="0" />
+      </div>
+    </div>
   `;
   document.getElementById("itemsContainer").appendChild(div);
+}
+
+function toggleAvanzado() {
+  document.querySelectorAll(".item-avanzado").forEach(el => el.classList.toggle("hidden"));
 }
 
 let clientesCache = [];
@@ -384,10 +402,14 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
   const facturaAntes = facturasPorId[facturaId]; // guardamos referencia antes de recargar la lista
   try {
     const monto = parseFloat(document.getElementById("pago_monto").value);
+    // El tipo (abono/pago total) se determina solo, comparando el monto con el
+    // saldo pendiente — así el usuario no tiene que decidirlo ni puede
+    // equivocarse dejando un dato que no coincide con lo que realmente pagó.
+    const tipoPago = facturaAntes && monto >= facturaAntes.saldo_pendiente ? "total" : "abono";
     const pagoRegistrado = await api("/api/pagos", { method: "POST", body: {
       factura_id: facturaId,
       monto,
-      tipo_pago: document.getElementById("pago_tipo").value,
+      tipo_pago: tipoPago,
       metodo_pago: document.getElementById("pago_metodo").value,
       referencia: document.getElementById("pago_referencia").value || null,
     }});

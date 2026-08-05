@@ -50,6 +50,9 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
     if not cliente:
         raise HTTPException(404, "Cliente no encontrado")
 
+    if payload.frecuencia_pago not in ("diario", "quincenal", "mensual"):
+        raise HTTPException(400, "Frecuencia inválida: usa diario, quincenal o mensual")
+
     subtotal = Decimal("0")
     impuestos = Decimal("0")
     items_db: List[FacturaItem] = []
@@ -81,6 +84,7 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         cliente_id=cliente.id,
         fecha_emision=date.today(),
         fecha_vencimiento=payload.fecha_vencimiento,
+        frecuencia_pago=payload.frecuencia_pago,
         subtotal=subtotal,
         impuestos=impuestos,
         descuento=descuento,
@@ -91,7 +95,16 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         items=items_db,
     )
 
-    # Generar plan de cuotas si aplica (reparto igualitario de capital)
+    # Generar plan de cuotas si aplica (reparto igualitario de capital).
+    # La frecuencia decide cada cuánto cae la próxima cuota:
+    #   diario -> +1 día, quincenal -> +15 días, mensual -> +1 mes (por defecto)
+    def _siguiente_vencimiento(base: date, numero: int) -> date:
+        if payload.frecuencia_pago == "diario":
+            return base + relativedelta(days=numero - 1)
+        if payload.frecuencia_pago == "quincenal":
+            return base + relativedelta(days=15 * (numero - 1))
+        return base + relativedelta(months=numero - 1)
+
     n_cuotas = max(payload.numero_cuotas, 1)
     monto_por_cuota = (total / n_cuotas).quantize(Decimal("0.01"))
     acumulado = Decimal("0")
@@ -102,7 +115,7 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
             # Ajuste de redondeo en la última cuota
             monto = total - acumulado
         acumulado += monto
-        fecha_venc_cuota = payload.fecha_vencimiento + relativedelta(months=i - 1)
+        fecha_venc_cuota = _siguiente_vencimiento(payload.fecha_vencimiento, i)
         cuotas_db.append(Cuota(
             numero_cuota=i,
             fecha_vencimiento=fecha_venc_cuota,

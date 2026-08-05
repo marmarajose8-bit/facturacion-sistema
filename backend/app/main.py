@@ -47,6 +47,11 @@ async def index():
     return _serve("index.html")
 
 
+@app.get("/index.html")
+async def index_html():
+    return _serve("index.html")
+
+
 @app.get("/dashboard.html")
 async def dashboard_html():
     return _serve("dashboard.html")

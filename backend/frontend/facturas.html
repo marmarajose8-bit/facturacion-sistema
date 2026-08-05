@@ -10,7 +10,7 @@
 </head>
 <body class="min-h-screen bg-gray-900 text-gray-100">
     <div class="flex flex-col md:flex-row min-h-screen">
-        <!-- Sidebar Original con Logo y Colores de RYM -->
+        <!-- Sidebar Original con Logo y Colores RYM -->
         <aside class="w-full md:w-60 bg-gray-800 p-4 border-r border-gray-700 flex flex-col justify-between">
             <div>
                 <div class="flex items-center gap-3 mb-8 px-2">
@@ -31,18 +31,20 @@
 
         <!-- Main Content -->
         <main class="flex-1 p-6">
-            <header class="mb-6">
-                <h1 class="text-2xl font-bold text-white">Emitir Préstamo o Factura</h1>
-                <p class="text-sm text-gray-400">Panel de control y registro rápido de cobros</p>
+            <header class="mb-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-white">Emitir Préstamo o Factura</h1>
+                    <p class="text-sm text-gray-400">Panel de control y registro rápido de cobros</p>
+                </div>
             </header>
 
-            <!-- Formulario Claro y Explicativo para la Operadora -->
+            <!-- Formulario Principal -->
             <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-6 shadow-lg max-w-2xl">
                 <h2 class="text-lg font-semibold mb-2 text-amber-400">💡 Guía de Uso Rápido</h2>
                 <p class="text-xs text-gray-300 mb-4 bg-gray-900 p-3 rounded border border-gray-600">
                     <b>Paso 1:</b> Selecciona el cliente.<br>
-                    <b>Paso 2:</b> Elige cada cuánto pagará (Semanal, Quincenal o Mensual).<br>
-                    <b>Paso 3:</b> Revisa la descripción predeterminada, pon el monto y emite.
+                    <b>Paso 2:</b> Elige la frecuencia y la descripción.<br>
+                    <b>Paso 3:</b> Escribe el monto, emite y compártelo de inmediato por WhatsApp o Descarga.
                 </p>
 
                 <div class="space-y-4">
@@ -79,9 +81,20 @@
                     </div>
                 </div>
 
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition">Cancelar</button>
-                    <button type="button" onclick="alert('¡Préstamo emitido correctamente!')" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm transition">Emitir Préstamo</button>
+                <!-- Botones de Acción: Emitir, Azul de Detalles/PDF y Verde de WhatsApp -->
+                <div class="mt-6 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-700">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="alert('Descargando PDF de la factura...')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-1">
+                            📥 Descargar PDF
+                        </button>
+                        <button type="button" onclick="alert('Abriendo WhatsApp para enviar factura...')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-1">
+                            💬 WhatsApp
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition">Cancelar</button>
+                        <button type="button" onclick="alert('¡Préstamo emitido correctamente y listo para compartir!')" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm transition">Emitir Préstamo</button>
+                    </div>
                 </div>
             </div>
         </main>

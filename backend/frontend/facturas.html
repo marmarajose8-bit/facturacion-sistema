@@ -52,20 +52,20 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800" id="tabla-facturas">
-                        <tr class="hover:bg-slate-800/40">
-                            <td class="px-4 py-3 font-medium text-white" id="td-factura">FAC-000001</td>
-                            <td class="px-4 py-3" id="td-cliente">jose gregorio manan santan</td>
+                        <tr class="hover:bg-slate-800/40" data-id="FAC-000001">
+                            <td class="px-4 py-3 font-medium text-white td-factura">FAC-000001</td>
+                            <td class="px-4 py-3 td-cliente">jose gregorio manan santan</td>
                             <td class="px-4 py-3 text-gray-400">4 ago de 2026</td>
-                            <td class="px-4 py-3 text-white font-semibold" id="val-total">RD$23,000.00</td>
-                            <td class="px-4 py-3 text-blue-400 font-semibold" id="val-interes">15%</td>
-                            <td class="px-4 py-3 text-green-400" id="val-abonado">RD$5,000.00</td>
-                            <td class="px-4 py-3 text-amber-400 font-semibold" id="val-saldo">RD$18,000.00</td>
-                            <td class="px-4 py-3" id="td-cuota">Cuota 1 de 12</td>
-                            <td class="px-4 py-3"><span class="bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold" id="val-estado">PARCIAL</span></td>
+                            <td class="px-4 py-3 text-white font-semibold val-total">RD$23,000.00</td>
+                            <td class="px-4 py-3 text-blue-400 font-semibold val-interes">15%</td>
+                            <td class="px-4 py-3 text-green-400 val-abonado">RD$5,000.00</td>
+                            <td class="px-4 py-3 text-amber-400 font-semibold val-saldo">RD$18,000.00</td>
+                            <td class="px-4 py-3 td-cuota">Cuota 1 de 12</td>
+                            <td class="px-4 py-3"><span class="bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold val-estado">PARCIAL</span></td>
                             <td class="px-4 py-3"><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold">AL DIA</span></td>
                             <td class="px-4 py-3 space-x-2">
-                                <button onclick="abrirModal('modalCobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
-                                <button onclick="abrirModal('modalReenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
+                                <button onclick="prepararAccion('FAC-000001', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
+                                <button onclick="prepararAccion('FAC-000001', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
                                 <button onclick="alert('Generando PDF...')" class="text-gray-400 hover:underline">PDF</button>
                                 <button onclick="alert('Enviando enlace por WhatsApp...')" class="text-green-400 hover:underline">WhatsApp</button>
                             </td>
@@ -76,7 +76,7 @@
         </div>
     </main>
 
-    <!-- Modal Nueva Factura con cálculo automático integrado -->
+    <!-- Modal Nueva Factura -->
     <div id="modalNuevaFactura" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-lg shadow-2xl">
             <h3 class="text-lg font-bold mb-4 text-blue-400">Emitir Nueva Factura / Préstamo</h3>
@@ -124,8 +124,10 @@
     <!-- Modal Cobrar -->
     <div id="modalCobrar" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <h3 class="text-lg font-bold mb-4 text-blue-400">Registrar Cobro / Abono</h3>
+            <h3 class="text-lg font-bold mb-1 text-blue-400">Registrar Cobro / Abono</h3>
+            <p class="text-xs text-gray-400 mb-4" id="info-cobro-cliente">Factura: FAC-000001</p>
             <form onsubmit="registrarCobro(event)" class="space-y-4">
+                <input type="hidden" id="cobro-factura-id">
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Monto a Abonar (RD$)</label>
                     <input type="number" id="monto-abonar" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="2000" required>
@@ -141,8 +143,10 @@
     <!-- Modal Reenganchar -->
     <div id="modalReenganchar" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <h3 class="text-lg font-bold mb-4 text-yellow-400">Reenganchar Préstamo</h3>
+            <h3 class="text-lg font-bold mb-1 text-yellow-400">Reenganchar Préstamo</h3>
+            <p class="text-xs text-gray-400 mb-4" id="info-reenganche-cliente">Factura: FAC-000001</p>
             <form onsubmit="registrarReenganche(event)" class="space-y-4">
+                <input type="hidden" id="reenganche-factura-id">
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Capital Adicional / Nuevo Monto (RD$)</label>
                     <input type="number" id="monto-reenganchar" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="5000" required>
@@ -156,12 +160,6 @@
     </div>
 
     <script>
-        let capitalActual = 20000;
-        let interesPct = 15;
-        let totalActual = 23000;
-        let abonadoActual = 5000;
-        let saldoActual = 18000;
-
         function abrirModal(id) {
             document.getElementById(id).classList.remove('hidden');
         }
@@ -169,65 +167,103 @@
             document.getElementById(id).classList.add('hidden');
         }
 
+        function prepararAccion(facturaId, tipo) {
+            let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
+            let clienteNombre = fila.querySelector('.td-cliente').innerText;
+
+            if (tipo === 'cobrar') {
+                document.getElementById('cobro-factura-id').value = facturaId;
+                document.getElementById('info-cobro-cliente').innerText = `Factura: ${facturaId} - Cliente: ${clienteNombre}`;
+                abrirModal('modalCobrar');
+            } else if (tipo === 'reenganchar') {
+                document.getElementById('reenganche-factura-id').value = facturaId;
+                document.getElementById('info-reenganche-cliente').innerText = `Factura: ${facturaId} - Cliente: ${clienteNombre}`;
+                abrirModal('modalReenganchar');
+            }
+        }
+
         function emitirNuevaFactura(e) {
             e.preventDefault();
-            capitalActual = parseFloat(document.getElementById('input-capital').value) || 0;
-            interesPct = parseFloat(document.getElementById('input-interes').value) || 0;
-            let cuotasNum = document.getElementById('input-cuotas').value || 1;
+            let capital = parseFloat(document.getElementById('input-capital').value) || 0;
+            let interes = parseFloat(document.getElementById('input-interes').value) || 0;
             let clienteNom = document.getElementById('input-cliente-nombre').value;
+            let cuotasNum = document.getElementById('input-cuotas').value || 1;
 
-            let ganancia = capitalActual * (interesPct / 100);
-            totalActual = capitalActual + ganancia;
-            abonadoActual = 0;
-            saldoActual = totalActual;
+            let ganancia = capital * (interes / 100);
+            let total = capital + ganancia;
+            let saldo = total;
 
-            document.getElementById('td-cliente').innerText = clienteNom;
-            document.getElementById('val-total').innerText = 'RD$' + totalActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.getElementById('val-interes').innerText = interesPct + '%';
-            document.getElementById('val-abonado').innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.getElementById('val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.getElementById('td-cuota').innerText = 'Cuota 1 de ' + cuotasNum;
-            document.getElementById('val-estado').innerText = 'PENDIENTE';
-            document.getElementById('val-estado').className = 'bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold';
+            let fila = document.querySelector('tr[data-id="FAC-000001"]');
+            fila.querySelector('.td-cliente').innerText = clienteNom;
+            fila.querySelector('.val-total').innerText = 'RD$' + total.toLocaleString('en-US', {minimumFractionDigits: 2});
+            fila.querySelector('.val-interes').innerText = interes + '%';
+            fila.querySelector('.val-abonado').innerText = 'RD$0.00';
+            fila.querySelector('.val-saldo').innerText = 'RD$' + saldo.toLocaleString('en-US', {minimumFractionDigits: 2});
+            fila.querySelector('.td-cuota').innerText = 'Cuota 1 de ' + cuotasNum;
+            let est = fila.querySelector('.val-estado');
+            est.innerText = 'PENDIENTE';
+            est.className = 'bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold val-estado';
 
-            alert('¡Factura emitida exitosamente con el ' + interesPct + '% de interés aplicado automáticamente!');
+            alert('¡Factura emitida correctamente con el ' + interes + '% de interés!');
             cerrarModal('modalNuevaFactura');
         }
 
         function registrarCobro(e) {
             e.preventDefault();
+            let facturaId = document.getElementById('cobro-factura-id').value;
             let monto = parseFloat(document.getElementById('monto-abonar').value) || 0;
+            let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
+
+            let abonadoElem = fila.querySelector('.val-abonado');
+            let saldoElem = fila.querySelector('.val-saldo');
+            let est = fila.querySelector('.val-estado');
+
+            let abonadoActual = parseFloat(abonadoElem.innerText.replace('RD$', '').replace(/,/g, '')) || 0;
+            let saldoActual = parseFloat(saldoElem.innerText.replace('RD$', '').replace(/,/g, '')) || 0;
+
             abonadoActual += monto;
             saldoActual = Math.max(0, saldoActual - monto);
-            
-            document.getElementById('val-abonado').innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.getElementById('val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            
+
+            abonadoElem.innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            saldoElem.innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+
             if (saldoActual <= 0) {
-                document.getElementById('val-estado').innerText = 'PAGADO';
-                document.getElementById('val-estado').className = 'bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs font-semibold';
+                est.innerText = 'PAGADO';
+                est.className = 'bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs font-semibold val-estado';
             } else {
-                document.getElementById('val-estado').innerText = 'PARCIAL';
-                document.getElementById('val-estado').className = 'bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold';
+                est.innerText = 'PARCIAL';
+                est.className = 'bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold val-estado';
             }
 
-            alert('Cobro registrado correctamente por RD$' + monto.toLocaleString());
+            alert(`Cobro de RD$${monto.toLocaleString()} aplicado con éxito a la factura ${facturaId}`);
             cerrarModal('modalCobrar');
             document.getElementById('monto-abonar').value = '';
         }
 
         function registrarReenganche(e) {
             e.preventDefault();
+            let facturaId = document.getElementById('reenganche-factura-id').value;
             let montoAdicional = parseFloat(document.getElementById('monto-reenganchar').value) || 0;
-            capitalActual += montoAdicional;
+            let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
+
+            let totalElem = fila.querySelector('.val-total');
+            let saldoElem = fila.querySelector('.val-saldo');
+            let interesElem = fila.querySelector('.val-interes');
+
+            let totalActual = parseFloat(totalElem.innerText.replace('RD$', '').replace(/,/g, '')) || 0;
+            let saldoActual = parseFloat(saldoElem.innerText.replace('RD$', '').replace(/,/g, '')) || 0;
+            let interesPct = parseFloat(interesElem.innerText) || 15;
+
             let gananciaAdicional = montoAdicional * (interesPct / 100);
-            totalActual += (montoAdicional + gananciaAdicional);
-            saldoActual += (montoAdicional + gananciaAdicional);
-            
-            document.getElementById('val-total').innerText = 'RD$' + totalActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.getElementById('val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            
-            alert('Préstamo reenganchado con éxito. Se añadió capital por RD$' + montoAdicional.toLocaleString());
+            let incrementoTotal = montoAdicional + gananciaAdicional;
+
+            totalActual += incrementoTotal;
+            saldoActual += incrementoTotal;
+
+            totalElem.innerText = 'RD$' + totalActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            saldoElem.innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+
+            alert(`Préstamo reenganchado con éxito para la factura ${facturaId}. Se sumaron RD$${montoAdicional.toLocaleString()} de capital.`);
             cerrarModal('modalReenganchar');
             document.getElementById('monto-reenganchar').value = '';
         }

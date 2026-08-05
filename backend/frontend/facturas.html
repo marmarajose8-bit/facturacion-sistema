@@ -44,7 +44,7 @@
       <table class="ledger w-full" style="min-width:680px;">
         <thead>
           <tr>
-            <th>No. Factura</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Saldo</th><th>Estado</th><th>Mora</th><th></th>
+            <th>No. Factura</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Cuota</th><th>Estado</th><th>Mora</th><th></th>
           </tr>
         </thead>
         <tbody id="tablaFacturas"></tbody>
@@ -237,7 +237,7 @@ function actualizarVuelto() {
   const info = document.getElementById("pago_vuelto_info");
   if (!f) { info.classList.add("hidden"); return; }
 
-  const saldo = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
+  const saldo = f.saldo_pendiente;
   const monto = parseFloat(document.getElementById("pago_monto").value);
   const metodo = document.getElementById("pago_metodo").value;
 
@@ -403,7 +403,7 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
     // Notificación de pago por WhatsApp (manual: abre el chat con el mensaje listo)
     if (facturaAntes?.cliente?.telefono) {
       const f = facturasPorId[facturaId] || facturaAntes;
-      const saldoRestante = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
+      const saldoRestante = f.saldo_pendiente;
       const mensaje = saldoRestante > 0
         ? `Hola ${facturaAntes.cliente.razon_social}, confirmamos que recibimos tu pago de ${fmt.money(monto)} para la factura ${facturaAntes.numero_factura}. Saldo restante: ${fmt.money(saldoRestante)}.`
         : `Hola ${facturaAntes.cliente.razon_social}, confirmamos que recibimos tu pago de ${fmt.money(monto)} para la factura ${facturaAntes.numero_factura}. ¡Tu factura quedó saldada por completo, gracias!`;
@@ -428,7 +428,9 @@ async function cargarFacturas() {
         <td data-label="Cliente">${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</td>
         <td data-label="Vencimiento">${fmt.date(f.fecha_vencimiento)}</td>
         <td class="font-mono-ledger" data-label="Total">${fmt.money(f.total)}</td>
-        <td class="font-mono-ledger" data-label="Saldo">${fmt.money(f.saldo_capital + f.interes_acumulado + f.recargo_mora)}</td>
+        <td class="font-mono-ledger" data-label="Abonado">${fmt.money(f.total_abonado)}</td>
+        <td class="font-mono-ledger" data-label="Saldo">${fmt.money(f.saldo_pendiente)}</td>
+        <td data-label="Cuota"><span class="text-sm">${f.texto_cuota}</span></td>
         <td data-label="Estado"><span class="badge badge-${f.estado}">${f.estado}</span></td>
         <td data-label="Mora"><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
         <td class="whitespace-nowrap">
@@ -440,7 +442,7 @@ async function cargarFacturas() {
           </div>
         </td>
       </tr>
-    `).join("") || `<tr><td colspan="8" class="text-center py-8" style="color:var(--text-dim)">Sin facturas registradas aún.</td></tr>`;
+    `).join("") || `<tr><td colspan="10" class="text-center py-8" style="color:var(--text-dim)">Sin facturas registradas aún.</td></tr>`;
   } catch (err) { toast(err.message, "error"); }
 }
 
@@ -453,8 +455,8 @@ async function enviarPorWhatsapp(facturaId) {
   }
   try {
     await descargarPDFFactura(f.id, f.numero_factura);
-    const saldo = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
-    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}). Vence el ${fmt.date(f.fecha_vencimiento)}.`;
+    const saldo = f.saldo_pendiente;
+    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}, ${f.texto_cuota}). Vence el ${fmt.date(f.fecha_vencimiento)}.`;
     abrirWhatsapp(f.cliente.telefono, mensaje);
     toast("Se descargó el PDF — adjúntalo en la conversación de WhatsApp que se abrió");
   } catch (err) { toast(err.message, "error"); }

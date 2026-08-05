@@ -77,11 +77,32 @@ def registrar_pago(
 
     cuota = None
     if payload.cuota_id:
+        # El usuario/UI indicó explícitamente a qué cuota aplicar el abono.
         cuota = db.query(Cuota).get(payload.cuota_id)
         if cuota:
             cuota.monto_pagado = Decimal(cuota.monto_pagado) + aplicado_capital
             if cuota.monto_pagado >= cuota.monto_capital:
                 cuota.estado = EstadoFactura.pagada
+    else:
+        # Flujo normal (no se indicó cuota): reparte el capital aplicado
+        # entre las cuotas pendientes en orden, para que "Cuota X de N"
+        # avance automáticamente aunque no se seleccione una cuota puntual.
+        restante_capital = aplicado_capital
+        cuotas_pendientes = sorted(
+            (c for c in factura.cuotas if c.estado != EstadoFactura.pagada),
+            key=lambda c: c.numero_cuota,
+        )
+        for c in cuotas_pendientes:
+            if restante_capital <= 0:
+                break
+            falta_en_cuota = Decimal(c.monto_capital) - Decimal(c.monto_pagado)
+            if falta_en_cuota <= 0:
+                continue
+            aplicado_a_esta = min(restante_capital, falta_en_cuota)
+            c.monto_pagado = Decimal(c.monto_pagado) + aplicado_a_esta
+            if c.monto_pagado >= c.monto_capital:
+                c.estado = EstadoFactura.pagada
+            restante_capital -= aplicado_a_esta
 
     if factura.saldo_capital <= 0:
         factura.estado = EstadoFactura.pagada

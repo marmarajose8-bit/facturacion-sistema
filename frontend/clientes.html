@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Clientes — RYM Inversiones</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/styles.css" />
+</head>
+<body class="min-h-screen">
+<div class="flex flex-col md:flex-row">
+
+  <aside class="w-full md:w-60 md:min-h-screen panel-2 p-3 md:p-4 flex flex-row md:flex-col items-center md:items-stretch justify-between gap-3 md:gap-0" style="border-bottom:1px solid var(--border);">
+    <div class="flex items-center gap-4 md:block min-w-0 overflow-x-auto">
+      <div class="flex items-center gap-2 px-0 md:px-2 md:mb-8 shrink-0">
+        <img src="static/img/logo-rym.jpeg" alt="RYM Inversiones" class="w-9 h-9 rounded-lg object-cover" />
+        <span class="font-semibold leading-tight">RYM<span style="color:var(--accent)"> Inversiones</span></span>
+      </div>
+      <nav class="flex md:flex-col gap-1 md:gap-0 md:space-y-1 shrink-0">
+        <a href="dashboard.html" class="sidebar-link">Dashboard</a>
+        <a href="clientes.html" class="sidebar-link active">Clientes</a>
+        <a href="facturas.html" class="sidebar-link">Facturas</a>
+        <a href="cartera.html" class="sidebar-link">Cartera y Mora</a>
+      </nav>
+    </div>
+    <div class="px-0 md:px-2 shrink-0">
+      <p class="text-xs mb-2 hidden md:block" style="color:var(--text-dim)" id="usuarioNombre"></p>
+      <button onclick="Auth.logout()" class="btn-ghost text-sm px-3 py-2 md:w-full">Salir</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-4 md:p-8 w-full min-w-0">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold">Clientes</h1>
+        <p class="text-sm" style="color:var(--text-dim)">Perfiles fiscales, contacto y límites de crédito</p>
+      </div>
+      <button class="btn-primary" onclick="abrirModal()">+ Nuevo cliente</button>
+    </div>
+
+    <div class="mb-4">
+      <input id="buscador" placeholder="Buscar por nombre o documento..." class="w-96" oninput="cargar()" />
+    </div>
+
+    <div class="panel overflow-hidden">
+      <div class="overflow-x-auto">
+      <table class="ledger w-full" style="min-width:680px;">
+        <thead>
+          <tr>
+            <th>Cliente</th><th>Documento</th><th>Contacto</th><th>Límite crédito</th><th>Estado</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tablaClientes"></tbody>
+      </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal nuevo cliente -->
+<div id="modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40">
+  <div class="panel p-6 w-full max-w-lg">
+    <h2 class="text-lg font-semibold mb-4">Nuevo cliente</h2>
+    <form id="formCliente" class="space-y-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Tipo documento</label>
+          <select id="tipo_documento" class="w-full mt-1">
+            <option value="CEDULA">Cédula</option>
+            <option value="RNC">RNC</option>
+            <option value="PASAPORTE">Pasaporte</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Número documento</label>
+          <input id="numero_documento" required class="w-full mt-1" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Razón social / Nombre</label>
+        <input id="razon_social" required class="w-full mt-1" />
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Email</label>
+          <input type="email" id="email" class="w-full mt-1" />
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Teléfono</label>
+          <input id="telefono" class="w-full mt-1" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Límite de crédito</label>
+          <input type="number" step="0.01" id="limite_credito" class="w-full mt-1" value="0" />
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Días de crédito</label>
+          <input type="number" id="dias_credito" class="w-full mt-1" value="30" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" class="btn-ghost" onclick="cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="static/js/app.js"></script>
+<script>
+Auth.requireAuth();
+document.getElementById("usuarioNombre").textContent = Auth.getUsuario()?.nombre_completo || "";
+
+function abrirModal() { document.getElementById("modal").classList.remove("hidden"); document.getElementById("modal").classList.add("flex"); }
+function cerrarModal() { document.getElementById("modal").classList.add("hidden"); document.getElementById("modal").classList.remove("flex"); }
+
+async function cargar() {
+  const q = document.getElementById("buscador").value;
+  try {
+    const clientes = await api(`/api/clientes?q=${encodeURIComponent(q)}`);
+    document.getElementById("tablaClientes").innerHTML = clientes.map(c => `
+      <tr>
+        <td data-label="Cliente">${c.razon_social}</td>
+        <td class="font-mono-ledger" data-label="Documento">${c.numero_documento}</td>
+        <td data-label="Contacto">${c.email || c.telefono || "—"}</td>
+        <td class="font-mono-ledger" data-label="Límite crédito">${fmt.money(c.limite_credito)}</td>
+        <td data-label="Estado"><span class="badge ${c.activo ? "badge-pagada" : "badge-anulada"}">${c.activo ? "Activo" : "Inactivo"}</span></td>
+        <td><a href="facturas.html?cliente_id=${c.id}" class="text-sm" style="color:var(--accent)">Ver facturas</a></td>
+      </tr>
+    `).join("") || `<tr><td colspan="6" class="text-center py-8" style="color:var(--text-dim)">Sin clientes registrados aún.</td></tr>`;
+  } catch (err) { toast(err.message, "error"); }
+}
+
+document.getElementById("formCliente").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/api/clientes", { method: "POST", body: {
+      tipo_documento: document.getElementById("tipo_documento").value,
+      numero_documento: document.getElementById("numero_documento").value,
+      razon_social: document.getElementById("razon_social").value,
+      email: document.getElementById("email").value || null,
+      telefono: document.getElementById("telefono").value || null,
+      limite_credito: parseFloat(document.getElementById("limite_credito").value || 0),
+      dias_credito: parseInt(document.getElementById("dias_credito").value || 30),
+    }});
+    toast("Cliente creado correctamente");
+    cerrarModal();
+    e.target.reset();
+    cargar();
+  } catch (err) { toast(err.message, "error"); }
+});
+
+cargar();
+</script>
+</body>
+</html>

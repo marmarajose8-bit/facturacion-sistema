@@ -5,7 +5,7 @@
 -- =========================================================
 
 CREATE TYPE rol_usuario AS ENUM ('admin', 'cajero', 'cobrador');
-CREATE TYPE estado_factura AS ENUM ('pendiente', 'parcial', 'pagada', 'anulada', 'vencida');
+CREATE TYPE estado_factura AS ENUM ('pendiente', 'parcial', 'pagada', 'anulada', 'vencida', 'reenganchada');
 CREATE TYPE estado_mora AS ENUM ('al_dia', 'preventiva', 'administrativa', 'extrajudicial');
 CREATE TYPE metodo_pago AS ENUM ('efectivo', 'transferencia', 'tarjeta', 'cheque', 'otro');
 CREATE TYPE tipo_pago AS ENUM ('abono', 'total');
@@ -52,8 +52,10 @@ CREATE TABLE facturas (
     id                 SERIAL PRIMARY KEY,
     numero_factura     VARCHAR(30) UNIQUE NOT NULL,
     cliente_id         INTEGER NOT NULL REFERENCES clientes(id),
+    factura_origen_id  INTEGER REFERENCES facturas(id),  -- si nació de un reenganche
     fecha_emision      DATE NOT NULL DEFAULT CURRENT_DATE,
     fecha_vencimiento  DATE NOT NULL,
+    frecuencia_pago    VARCHAR(20) NOT NULL DEFAULT 'mensual',  -- diario | quincenal | mensual
 
     subtotal           NUMERIC(14,2) NOT NULL DEFAULT 0,
     impuestos          NUMERIC(14,2) NOT NULL DEFAULT 0,
@@ -76,6 +78,7 @@ CREATE TABLE facturas (
 CREATE INDEX idx_facturas_cliente ON facturas (cliente_id);
 CREATE INDEX idx_facturas_estado ON facturas (estado);
 CREATE INDEX idx_facturas_estado_mora ON facturas (estado_mora);
+CREATE INDEX idx_facturas_origen ON facturas (factura_origen_id);
 
 -- ---------------------------------------------------------
 -- Ítems de factura (desglose de conceptos)
@@ -123,6 +126,7 @@ CREATE TABLE pagos (
     monto_interes   NUMERIC(14,2) NOT NULL DEFAULT 0,
     monto_recargo   NUMERIC(14,2) NOT NULL DEFAULT 0,
     monto_total     NUMERIC(14,2) NOT NULL DEFAULT 0,
+    vuelto          NUMERIC(14,2) NOT NULL DEFAULT 0,
 
     referencia      VARCHAR(100),
     notas           TEXT,

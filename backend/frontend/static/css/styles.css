@@ -83,6 +83,7 @@ body {
 .badge-pagada { background: rgba(20,184,138,.15); color: var(--accent); }
 .badge-vencida { background: rgba(239,68,68,.18); color: var(--danger-2); }
 .badge-anulada { background: rgba(147,161,189,.10); color: var(--text-dim); }
+.badge-reenganchada { background: rgba(240,165,0,.15); color: #f0a500; }
 
 input, select, textarea {
   background-color: var(--panel-2);

@@ -13,6 +13,7 @@ class EstadoFactura(str, enum.Enum):
     pagada = "pagada"
     anulada = "anulada"
     vencida = "vencida"
+    reenganchada = "reenganchada"  # cerrada porque su saldo se consolidó en un nuevo préstamo (reenganche)
 
 
 class EstadoMora(str, enum.Enum):
@@ -30,6 +31,11 @@ class Factura(Base):
 
     cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
     cliente = relationship("Cliente", back_populates="facturas")
+
+    # Trazabilidad de reenganches: si esta factura nació de un reenganche,
+    # apunta a la factura anterior cuyo saldo fue consolidado aquí.
+    factura_origen_id = Column(Integer, ForeignKey("facturas.id"), nullable=True)
+    factura_origen = relationship("Factura", remote_side=[id], backref="reenganches")
 
     fecha_emision = Column(Date, server_default=func.current_date())
     fecha_vencimiento = Column(Date, nullable=False)
@@ -67,7 +73,10 @@ class FacturaItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     factura_id = Column(Integer, ForeignKey("facturas.id"), nullable=False)
-    descripcion = Column(String(300), nullable=False)
+    # Nullable a nivel de BD por seguridad, pero el router SIEMPRE la rellena
+    # con un texto por defecto ("Préstamo personal" / "Reenganche de crédito")
+    # cuando el usuario la deja en blanco, para no bloquear nunca la emisión.
+    descripcion = Column(String(300), nullable=True)
     cantidad = Column(Numeric(12, 2), nullable=False, default=1)
     precio_unitario = Column(Numeric(14, 2), nullable=False, default=0)
     porcentaje_impuesto = Column(Numeric(5, 2), nullable=False, default=0)

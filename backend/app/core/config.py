@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     DIAS_MORA_ADMINISTRATIVA: int = 30
     DIAS_MORA_EXTRAJUDICIAL: int = 90
 
+    # Reenganche: porcentaje mínimo del capital que el cliente debe haber
+    # amortizado sobre su préstamo activo para poder ampliarlo/reenganchar.
+    # 0.5 = debe haber pagado al menos el 50% del capital original.
+    REENGANCHE_PORCENTAJE_MINIMO: float = 0.5
+    REENGANCHE_DESCRIPCION_DEFECTO: str = "Reenganche de crédito"
+    PRESTAMO_DESCRIPCION_DEFECTO: str = "Préstamo personal"
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

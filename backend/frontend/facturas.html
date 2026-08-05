@@ -52,7 +52,6 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800" id="tabla-facturas">
-                        <!-- Fila de ejemplo para asegurar que luzca idéntica a tu captura anterior -->
                         <tr class="hover:bg-slate-800/40">
                             <td class="px-4 py-3 font-medium text-white">FAC-000001</td>
                             <td class="px-4 py-3">jose gregorio manan santan</td>
@@ -77,26 +76,55 @@
         </div>
     </main>
 
-    <!-- Modal para Nueva Factura -->
+    <!-- Modal Original de Nueva Factura con Interés Agregado -->
     <div id="modalNuevaFactura" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <h3 class="text-lg font-bold mb-4 text-blue-400">Emitir Nueva Factura / Préstamo</h3>
-            <form id="formNuevaFactura" onsubmit="event.preventDefault(); alert('Factura emitida con éxito'); cerrarModalNuevaFactura();">
-                <div class="mb-4">
-                    <label class="block text-sm text-gray-400 mb-1">ID del Cliente</label>
-                    <input type="number" id="cliente_id" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required value="3">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-lg shadow-2xl">
+            <h3 class="text-lg font-bold mb-4 text-blue-400">Nueva factura</h3>
+            <p class="text-xs text-gray-400 mb-4">Llenado rápido + escribe nombres de cliente, monto, frecuencia y préstamo 1 click</p>
+            
+            <form id="formNuevaFactura" onsubmit="event.preventDefault(); alert('Factura emitida con éxito'); cerrarModalNuevaFactura();" class="space-y-4">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-sm text-gray-300">Cliente</label>
+                        <button type="button" class="text-xs text-blue-400 hover:underline">Llenar</button>
+                    </div>
+                    <input type="text" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="jose gregorio manan santan">
                 </div>
-                <div class="mb-4">
-                    <label class="block text-sm text-gray-400 mb-1">Monto Capital (RD$)</label>
-                    <input type="number" id="monto" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required placeholder="20000">
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-300 mb-1">Fecha de vencimiento</label>
+                        <input type="date" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="2026-08-05">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-300 mb-1">Frecuencia de pago</label>
+                        <select class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm">
+                            <option>Diario</option>
+                            <option selected>Quincenal</option>
+                            <option>Mensual</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="mb-4">
-                    <label class="block text-sm text-gray-400 mb-1">Tasa de Interés (%)</label>
-                    <input type="number" id="interes" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required value="15">
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-300 mb-1">Número de cuotas</label>
+                        <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="12">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-300 mb-1">Tasa de Interés (%)</label>
+                        <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm border-blue-500" value="15">
+                    </div>
                 </div>
-                <div class="flex justify-end space-x-2">
-                    <button type="button" onclick="cerrarModalNuevaFactura()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300">Cancelar</button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white font-medium">Emitir</button>
+
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1">Monto del préstamo</label>
+                    <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="20000">
+                </div>
+
+                <div class="flex justify-between items-center pt-2">
+                    <button type="button" onclick="cerrarModalNuevaFactura()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white font-medium text-sm">Emitir factura</button>
                 </div>
             </form>
         </div>

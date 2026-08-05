@@ -1,23 +1,62 @@
-<!-- Vista de Facturas con Porcentaje de Interes Integrado -->
-<div class="overflow-x-auto">
-  <table class="w-full text-left text-sm text-gray-300">
-    <thead class="bg-gray-800 text-gray-400 uppercase text-xs">
-      <tr>
-        <th class="px-4 py-3">No. Factura</th>
-        <th class="px-4 py-3">Cliente</th>
-        <th class="px-4 py-3">Vencimiento</th>
-        <th class="px-4 py-3">Total</th>
-        <th class="px-4 py-3">Interés</th>
-        <th class="px-4 py-3">Abonado</th>
-        <th class="px-4 py-3">Saldo</th>
-        <th class="px-4 py-3">Cuota</th>
-        <th class="px-4 py-3">Estado</th>
-        <th class="px-4 py-3">Mora</th>
-        <th class="px-4 py-3">Acciones</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-700">
-      <!-- Los datos se cargan dinámicamente manteniendo la estructura original -->
-    </tbody>
-  </table>
-</div>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RYM Inversiones - Facturas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-gray-100 flex h-screen overflow-hidden">
+    <!-- Menú lateral original -->
+    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between">
+        <div class="p-6">
+            <h1 class="text-xl font-bold text-blue-400 mb-8">RYM Inversiones</h1>
+            <nav class="space-y-2">
+                <a href="dashboard.html" class="block px-4 py-2 rounded text-gray-400 hover:bg-slate-800 hover:text-white">Dashboard</a>
+                <a href="clientes.html" class="block px-4 py-2 rounded text-gray-400 hover:bg-slate-800 hover:text-white">Clientes</a>
+                <a href="facturas.html" class="block px-4 py-2 rounded bg-blue-600 text-white">Facturas</a>
+                <a href="cartera.html" class="block px-4 py-2 rounded text-gray-400 hover:bg-slate-800 hover:text-white">Cartera y Mora</a>
+            </nav>
+        </div>
+        <div class="p-6 border-t border-slate-800">
+            <button onclick="window.location.href='index.html'" class="w-full bg-red-600/20 text-red-400 py-2 rounded hover:bg-red-600/30">Salir</button>
+        </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 flex flex-col overflow-y-auto p-8">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h2 class="text-2xl font-bold">Facturas</h2>
+                <p class="text-sm text-gray-400">Emisión, cuotas y estado de cobro</p>
+            </div>
+            <button onclick="abrirModalNuevaFactura()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium">+ Nueva factura</button>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-gray-300">
+                    <thead class="bg-slate-800/60 text-gray-400 uppercase text-xs border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">No. Factura</th>
+                            <th class="px-4 py-3">Cliente</th>
+                            <th class="px-4 py-3">Vencimiento</th>
+                            <th class="px-4 py-3">Total</th>
+                            <th class="px-4 py-3">Interés</th>
+                            <th class="px-4 py-3">Abonado</th>
+                            <th class="px-4 py-3">Saldo</th>
+                            <th class="px-4 py-3">Cuota</th>
+                            <th class="px-4 py-3">Estado</th>
+                            <th class="px-4 py-3">Mora</th>
+                            <th class="px-4 py-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800" id="tabla-facturas">
+                        <!-- Carga dinámica -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

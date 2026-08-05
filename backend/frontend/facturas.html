@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-gray-100 flex h-screen overflow-hidden">
-    <!-- Menú lateral original -->
+    <!-- Menú lateral -->
     <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between">
         <div class="p-6">
             <h1 class="text-xl font-bold text-blue-400 mb-8">RYM Inversiones</h1>
@@ -28,7 +28,7 @@
         <div class="flex justify-between items-center mb-6">
             <div>
                 <h2 class="text-2xl font-bold">Facturas</h2>
-                <p class="text-sm text-gray-400">Emisión, cuotas y estado de cobro</p>
+                <p class="text-sm text-gray-400">Emisión, cuotas y estado de cobro con cálculo automático</p>
             </div>
             <button onclick="abrirModal('modalNuevaFactura')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium">+ Nueva factura</button>
         </div>
@@ -53,21 +53,21 @@
                     </thead>
                     <tbody class="divide-y divide-slate-800" id="tabla-facturas">
                         <tr class="hover:bg-slate-800/40">
-                            <td class="px-4 py-3 font-medium text-white">FAC-000001</td>
-                            <td class="px-4 py-3">jose gregorio manan santan</td>
+                            <td class="px-4 py-3 font-medium text-white" id="td-factura">FAC-000001</td>
+                            <td class="px-4 py-3" id="td-cliente">jose gregorio manan santan</td>
                             <td class="px-4 py-3 text-gray-400">4 ago de 2026</td>
-                            <td class="px-4 py-3 text-white">RD$20,000.00</td>
-                            <td class="px-4 py-3 text-blue-400">15%</td>
-                            <td class="px-4 py-3 text-green-400">RD$5,000.00</td>
-                            <td class="px-4 py-3 text-amber-400">RD$15,000.00</td>
-                            <td class="px-4 py-3">Cuota 1 de 1</td>
-                            <td class="px-4 py-3"><span class="bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold">PARCIAL</span></td>
+                            <td class="px-4 py-3 text-white font-semibold" id="val-total">RD$23,000.00</td>
+                            <td class="px-4 py-3 text-blue-400 font-semibold" id="val-interes">15%</td>
+                            <td class="px-4 py-3 text-green-400" id="val-abonado">RD$5,000.00</td>
+                            <td class="px-4 py-3 text-amber-400 font-semibold" id="val-saldo">RD$18,000.00</td>
+                            <td class="px-4 py-3" id="td-cuota">Cuota 1 de 12</td>
+                            <td class="px-4 py-3"><span class="bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold" id="val-estado">PARCIAL</span></td>
                             <td class="px-4 py-3"><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold">AL DIA</span></td>
                             <td class="px-4 py-3 space-x-2">
-                                <button onclick="abrirModal('modalCobrar')" class="text-blue-400 hover:underline">Cobrar</button>
-                                <button onclick="abrirModal('modalReenganchar')" class="text-yellow-400 hover:underline">Reenganchar</button>
-                                <button class="text-gray-400 hover:underline">PDF</button>
-                                <button class="text-green-400 hover:underline">WhatsApp</button>
+                                <button onclick="abrirModal('modalCobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
+                                <button onclick="abrirModal('modalReenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
+                                <button onclick="alert('Generando PDF...')" class="text-gray-400 hover:underline">PDF</button>
+                                <button onclick="alert('Enviando enlace por WhatsApp...')" class="text-green-400 hover:underline">WhatsApp</button>
                             </td>
                         </tr>
                     </tbody>
@@ -76,23 +76,23 @@
         </div>
     </main>
 
-    <!-- Modal Nueva Factura -->
+    <!-- Modal Nueva Factura con cálculo automático integrado -->
     <div id="modalNuevaFactura" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-lg shadow-2xl">
-            <h3 class="text-lg font-bold mb-4 text-blue-400">Nueva factura</h3>
-            <form onsubmit="event.preventDefault(); alert('Factura emitida con éxito'); cerrarModal('modalNuevaFactura');" class="space-y-4">
+            <h3 class="text-lg font-bold mb-4 text-blue-400">Emitir Nueva Factura / Préstamo</h3>
+            <form onsubmit="emitirNuevaFactura(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Cliente</label>
-                    <input type="text" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="jose gregorio manan santan">
+                    <input type="text" id="input-cliente-nombre" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="jose gregorio manan santan" required>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm text-gray-300 mb-1">Fecha de vencimiento</label>
-                        <input type="date" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="2026-08-05">
+                        <input type="date" id="input-fecha" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="2026-08-05" required>
                     </div>
                     <div>
                         <label class="block text-sm text-gray-300 mb-1">Frecuencia de pago</label>
-                        <select class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm">
+                        <select id="input-frecuencia" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm">
                             <option>Diario</option>
                             <option selected>Quincenal</option>
                             <option>Mensual</option>
@@ -102,16 +102,16 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm text-gray-300 mb-1">Número de cuotas</label>
-                        <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="12">
+                        <input type="number" id="input-cuotas" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="12" required>
                     </div>
                     <div>
                         <label class="block text-sm text-gray-300 mb-1">Tasa de Interés (%)</label>
-                        <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm border-blue-500" value="15">
+                        <input type="number" id="input-interes" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm border-blue-500" value="15" required>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm text-gray-300 mb-1">Monto del préstamo</label>
-                    <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="20000">
+                    <label class="block text-sm text-gray-300 mb-1">Monto del préstamo (Capital)</label>
+                    <input type="number" id="input-capital" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="20000" required>
                 </div>
                 <div class="flex justify-between items-center pt-2">
                     <button type="button" onclick="cerrarModal('modalNuevaFactura')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
@@ -125,10 +125,10 @@
     <div id="modalCobrar" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h3 class="text-lg font-bold mb-4 text-blue-400">Registrar Cobro / Abono</h3>
-            <form onsubmit="event.preventDefault(); alert('Cobro registrado correctamente'); cerrarModal('modalCobrar');" class="space-y-4">
+            <form onsubmit="registrarCobro(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Monto a Abonar (RD$)</label>
-                    <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="5000" required>
+                    <input type="number" id="monto-abonar" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="2000" required>
                 </div>
                 <div class="flex justify-end space-x-2 pt-2">
                     <button type="button" onclick="cerrarModal('modalCobrar')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
@@ -142,10 +142,10 @@
     <div id="modalReenganchar" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h3 class="text-lg font-bold mb-4 text-yellow-400">Reenganchar Préstamo</h3>
-            <form onsubmit="event.preventDefault(); alert('Préstamo reenganchado con éxito'); cerrarModal('modalReenganchar');" class="space-y-4">
+            <form onsubmit="registrarReenganche(event)" class="space-y-4">
                 <div>
-                    <label class="block text-sm text-gray-300 mb-1">Nuevo Monto / Capital Adicional (RD$)</label>
-                    <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="10000" required>
+                    <label class="block text-sm text-gray-300 mb-1">Capital Adicional / Nuevo Monto (RD$)</label>
+                    <input type="number" id="monto-reenganchar" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="5000" required>
                 </div>
                 <div class="flex justify-end space-x-2 pt-2">
                     <button type="button" onclick="cerrarModal('modalReenganchar')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
@@ -156,11 +156,80 @@
     </div>
 
     <script>
+        let capitalActual = 20000;
+        let interesPct = 15;
+        let totalActual = 23000;
+        let abonadoActual = 5000;
+        let saldoActual = 18000;
+
         function abrirModal(id) {
             document.getElementById(id).classList.remove('hidden');
         }
         function cerrarModal(id) {
             document.getElementById(id).classList.add('hidden');
+        }
+
+        function emitirNuevaFactura(e) {
+            e.preventDefault();
+            capitalActual = parseFloat(document.getElementById('input-capital').value) || 0;
+            interesPct = parseFloat(document.getElementById('input-interes').value) || 0;
+            let cuotasNum = document.getElementById('input-cuotas').value || 1;
+            let clienteNom = document.getElementById('input-cliente-nombre').value;
+
+            let ganancia = capitalActual * (interesPct / 100);
+            totalActual = capitalActual + ganancia;
+            abonadoActual = 0;
+            saldoActual = totalActual;
+
+            document.getElementById('td-cliente').innerText = clienteNom;
+            document.getElementById('val-total').innerText = 'RD$' + totalActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('val-interes').innerText = interesPct + '%';
+            document.getElementById('val-abonado').innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('td-cuota').innerText = 'Cuota 1 de ' + cuotasNum;
+            document.getElementById('val-estado').innerText = 'PENDIENTE';
+            document.getElementById('val-estado').className = 'bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold';
+
+            alert('¡Factura emitida exitosamente con el ' + interesPct + '% de interés aplicado automáticamente!');
+            cerrarModal('modalNuevaFactura');
+        }
+
+        function registrarCobro(e) {
+            e.preventDefault();
+            let monto = parseFloat(document.getElementById('monto-abonar').value) || 0;
+            abonadoActual += monto;
+            saldoActual = Math.max(0, saldoActual - monto);
+            
+            document.getElementById('val-abonado').innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            
+            if (saldoActual <= 0) {
+                document.getElementById('val-estado').innerText = 'PAGADO';
+                document.getElementById('val-estado').className = 'bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs font-semibold';
+            } else {
+                document.getElementById('val-estado').innerText = 'PARCIAL';
+                document.getElementById('val-estado').className = 'bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold';
+            }
+
+            alert('Cobro registrado correctamente por RD$' + monto.toLocaleString());
+            cerrarModal('modalCobrar');
+            document.getElementById('monto-abonar').value = '';
+        }
+
+        function registrarReenganche(e) {
+            e.preventDefault();
+            let montoAdicional = parseFloat(document.getElementById('monto-reenganchar').value) || 0;
+            capitalActual += montoAdicional;
+            let gananciaAdicional = montoAdicional * (interesPct / 100);
+            totalActual += (montoAdicional + gananciaAdicional);
+            saldoActual += (montoAdicional + gananciaAdicional);
+            
+            document.getElementById('val-total').innerText = 'RD$' + totalActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
+            
+            alert('Préstamo reenganchado con éxito. Se añadió capital por RD$' + montoAdicional.toLocaleString());
+            cerrarModal('modalReenganchar');
+            document.getElementById('monto-reenganchar').value = '';
         }
     </script>
 </body>

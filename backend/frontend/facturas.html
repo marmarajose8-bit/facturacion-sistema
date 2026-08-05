@@ -44,7 +44,7 @@
                 <p class="text-xs text-gray-300 mb-4 bg-gray-900 p-3 rounded border border-gray-600">
                     <b>Paso 1:</b> Selecciona el cliente.<br>
                     <b>Paso 2:</b> Elige la frecuencia y la descripción.<br>
-                    <b>Paso 3:</b> Escribe el monto, emite y compártelo de inmediato por WhatsApp o Descarga.
+                    <b>Paso 3:</b> Escribe el monto y presiona <b>Emitir Préstamo</b> para guardarlo de verdad.
                 </p>
 
                 <div class="space-y-4">
@@ -52,7 +52,7 @@
                         <label class="block text-sm font-medium text-gray-300 mb-1">Nombre del Cliente</label>
                         <select id="selectCliente" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:border-amber-500 focus:outline-none">
                             <option value="">Seleccione un cliente...</option>
-                            <option value="1">jose gregorio manan santan</option>
+                            <!-- Se llenará dinámicamente desde la API -->
                         </select>
                     </div>
 
@@ -61,7 +61,7 @@
                             <label class="block text-sm font-medium text-gray-300 mb-1">¿Cómo pagará? (Frecuencia)</label>
                             <select id="selectFrecuencia" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:border-amber-500 focus:outline-none">
                                 <option value="Semanal">Semanal</option>
-                                <option value="Quincenal">Quincenal (15 y 30)</option>
+                                <option value="Quincenal (15 y 30)">Quincenal (15 y 30)</option>
                                 <option value="Mensual">Mensual</option>
                             </select>
                         </div>
@@ -73,15 +73,15 @@
 
                     <!-- Concepto predeterminado pero editable -->
                     <div class="bg-gray-900 p-4 rounded border border-gray-700">
-                        <label class="block text-sm font-bold text-amber-400 mb-1">📝 Descripción Predeterminada (Puedes cambiarla si deseas)</label>
-                        <input type="text" id="conceptoPrestamo" value="Préstamo personal con interés de la calle" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mb-3 focus:border-amber-500 focus:outline-none" placeholder="Escribe o modifica la descripción aquí...">
+                        <label class="block text-sm font-bold text-amber-400 mb-1">📝 Descripción del Préstamo</label>
+                        <input type="text" id="conceptoPrestamo" value="Préstamo personal con interés de la calle" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mb-3 focus:border-amber-500 focus:outline-none">
 
                         <label class="block text-sm font-bold text-amber-400 mb-1">💰 Monto Total a Cobrar (RD$)</label>
                         <input type="number" id="montoTotal" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-lg font-bold text-amber-300 focus:border-amber-500 focus:outline-none" placeholder="0.00">
                     </div>
                 </div>
 
-                <!-- Botones de Acción funcionales -->
+                <!-- Botones de Acción Reales -->
                 <div class="mt-6 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-700">
                     <div class="flex gap-2">
                         <button type="button" onclick="descargarPDF()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-1 cursor-pointer">
@@ -92,8 +92,8 @@
                         </button>
                     </div>
                     <div class="flex gap-2">
-                        <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition">Cancelar</button>
-                        <button type="button" onclick="emitirPrestamo()" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm transition cursor-pointer">Emitir Préstamo</button>
+                        <button type="button" onclick="window.location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition">Cancelar</button>
+                        <button type="button" onclick="emitirPrestamoReal()" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm transition cursor-pointer">Emitir Préstamo</button>
                     </div>
                 </div>
             </div>
@@ -101,23 +101,74 @@
     </div>
 
     <script>
-        function emitirPrestamo() {
-            const cliente = document.getElementById('selectCliente').value;
-            const monto = document.getElementById('montoTotal').value;
-            if(!cliente || !monto) {
-                alert('Por favor selecciona un cliente y pon el monto del préstamo.');
+        // Cargar clientes al iniciar la página
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const res = await fetch('/api/v1/clientes/');
+                const clientes = await res.json();
+                const select = document.getElementById('selectCliente');
+                clientes.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.nombre;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error("Error cargando clientes:", err);
+            }
+        });
+
+        async function emitirPrestamoReal() {
+            const clienteId = document.getElementById('selectCliente').value;
+            const frecuencia = document.getElementById('selectFrecuencia').value;
+            const fechaVencimiento = document.getElementById('fechaVencimiento').value || new Date().toISOString().split('T')[0];
+            const descripcion = document.getElementById('conceptoPrestamo').value;
+            const monto = parseFloat(document.getElementById('montoTotal').value);
+
+            if (!clienteId || !monto || monto <= 0) {
+                alert('Por favor selecciona un cliente y escribe un monto válido.');
                 return;
             }
-            alert('¡Préstamo emitido correctamente en el sistema!');
+
+            const payload = {
+                cliente_id: parseInt(clienteId),
+                frecuencia_pago: frecuencia,
+                fecha_vencimiento: fechaVencimiento,
+                items: [
+                    {
+                        descripcion: descripcion,
+                        cantidad: 1,
+                        precio_unitario: monto
+                    }
+                ]
+            };
+
+            try {
+                const response = await fetch('/api/v1/facturas/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    alert('¡Préstamo emitido y guardado exitosamente en el sistema!');
+                    window.location.href = 'facturas.html';
+                } else {
+                    const errorData = await response.json();
+                    alert('Error al emitir: ' + (errorData.detail || 'Verifica los datos'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error de conexión con el servidor.');
+            }
         }
 
         function descargarPDF() {
-            // Enlace directo al endpoint de generación de PDF del backend
             window.open('/api/v1/facturas/pdf/ultimo', '_blank');
         }
 
         function enviarWhatsApp() {
-            const telefono = "18093041128"; // Número configurado para el negocio
+            const telefono = "18093041128";
             const texto = encodeURIComponent("Saludos, aquí está el detalle de su préstamo en RYM Inversiones.");
             window.open(`https://wa.me/${telefono}?text=${texto}`, '_blank');
         }

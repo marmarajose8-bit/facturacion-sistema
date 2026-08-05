@@ -1,338 +1,60 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RYM Inversiones - Facturas</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-950 text-gray-100 flex h-screen overflow-hidden">
-    <!-- Menú lateral original -->
-    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between">
-        <div class="p-6">
-            <h1 class="text-xl font-bold text-blue-400 mb-8">RYM Inversiones</h1>
-            <nav class="space-y-2">
-                <a href="dashboard.html" class="block px-4 py-2 rounded text-gray-400 hover:bg-slate-800 hover:text-white">Dashboard</a>
-                <a href="clientes.html" class="block px-4 py-2 rounded text-gray-400 hover:bg-slate-800 hover:text-white">Clientes</a>
-                <a href="facturas.html" class="block px-4 py-2 rounded bg-blue-600 text-white">Facturas</a>
-                <a href="cartera.html" class="block px-4 py-2 rounded text-gray-400 hover:bg-slate-800 hover:text-white">Cartera y Mora</a>
-            </nav>
+<!-- Modal Nueva Factura con Selector Desplegable de Clientes -->
+<div id="modalNuevaFactura" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+  <div class="bg-gray-900 p-6 rounded-lg w-full max-w-md border border-gray-800">
+    <h3 class="text-lg font-bold text-white mb-4">Nueva factura</h3>
+    <form id="formNuevaFactura" class="space-y-4">
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Cliente</label>
+        <select id="clienteSelect" name="cliente_id" class="w-full bg-gray-800 border border-gray-700 text-white rounded p-2 text-sm focus:outline-none focus:border-blue-500" required>
+          <option value="">Seleccione un cliente...</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Fecha de vencimiento</label>
+        <input type="date" name="fecha_vencimiento" class="w-full bg-gray-800 border border-gray-700 text-white rounded p-2 text-sm" required>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Frecuencia de pago</label>
+        <select name="frecuencia" class="w-full bg-gray-800 border border-gray-700 text-white rounded p-2 text-sm">
+          <option value="Quincenal">Quincenal</option>
+          <option value="Mensual">Mensual</option>
+          <option value="Diario">Diario</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Número de cuotas</label>
+          <input type="number" name="num_cuotas" value="12" class="w-full bg-gray-800 border border-gray-700 text-white rounded p-2 text-sm">
         </div>
-        <div class="p-6 border-t border-slate-800">
-            <button onclick="window.location.href='index.html'" class="w-full bg-red-600/20 text-red-400 py-2 rounded hover:bg-red-600/30">Salir</button>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Tasa de Interés (%)</label>
+          <input type="number" step="0.1" name="tasa_interes" value="15" class="w-full bg-gray-800 border border-gray-700 text-white rounded p-2 text-sm">
         </div>
-    </aside>
-
-    <!-- Contenido Principal -->
-    <main class="flex-1 flex flex-col overflow-y-auto p-8">
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h2 class="text-2xl font-bold">Facturas</h2>
-                <p class="text-sm text-gray-400">Emisión, cuotas y estado de cobro</p>
-            </div>
-            <button onclick="abrirModal('modalNuevaFactura')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium">+ Nueva factura</button>
-        </div>
-
-        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-gray-300">
-                    <thead class="bg-slate-800/60 text-gray-400 uppercase text-xs border-b border-slate-800">
-                        <tr>
-                            <th class="px-4 py-3">No. Factura</th>
-                            <th class="px-4 py-3">Cliente</th>
-                            <th class="px-4 py-3">Vencimiento</th>
-                            <th class="px-4 py-3">Total</th>
-                            <th class="px-4 py-3">Interés</th>
-                            <th class="px-4 py-3">Abonado</th>
-                            <th class="px-4 py-3">Saldo</th>
-                            <th class="px-4 py-3">Cuota</th>
-                            <th class="px-4 py-3">Estado</th>
-                            <th class="px-4 py-3">Mora</th>
-                            <th class="px-4 py-3">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800" id="tabla-facturas">
-                        <tr class="hover:bg-slate-800/40" data-id="FAC-000001">
-                            <td class="px-4 py-3 font-medium text-white td-factura">FAC-000001</td>
-                            <td class="px-4 py-3 td-cliente">jose gregorio manan santan</td>
-                            <td class="px-4 py-3 text-gray-400 td-vencimiento">4 ago de 2026</td>
-                            <td class="px-4 py-3 text-white font-semibold val-total">RD$31,050.00</td>
-                            <td class="px-4 py-3 text-blue-400 font-semibold val-interes">15%</td>
-                            <td class="px-4 py-3 text-green-400 val-abonado">RD$5,000.00</td>
-                            <td class="px-4 py-3 text-amber-400 font-semibold val-saldo">RD$26,050.00</td>
-                            <td class="px-4 py-3 td-cuota">Cuota 1 de 1</td>
-                            <td class="px-4 py-3"><span class="bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold val-estado">PARCIAL</span></td>
-                            <td class="px-4 py-3"><span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded text-xs font-semibold">AL DIA</span></td>
-                            <td class="px-4 py-3 space-x-2">
-                                <button onclick="prepararAccion('FAC-000001', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
-                                <button onclick="prepararAccion('FAC-000001', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
-                                <button onclick="descargarFactura('FAC-000001')" class="text-gray-300 hover:text-white hover:underline font-medium">Descargar</button>
-                                <button onclick="compartirWhatsApp('FAC-000001')" class="text-green-400 hover:underline font-medium">WhatsApp</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
-    <!-- Modal Nueva Factura -->
-    <div id="modalNuevaFactura" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-lg shadow-2xl">
-            <h3 class="text-lg font-bold mb-4 text-blue-400">Nueva factura</h3>
-            <form onsubmit="event.preventDefault(); alert('Factura emitida con éxito'); cerrarModal('modalNuevaFactura');" class="space-y-4">
-                <div>
-                    <label class="block text-sm text-gray-300 mb-1">Cliente</label>
-                    <input type="text" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="jose gregorio manan santan">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm text-gray-300 mb-1">Fecha de vencimiento</label>
-                        <input type="date" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="2026-08-05">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-300 mb-1">Frecuencia de pago</label>
-                        <select class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm">
-                            <option>Diario</option>
-                            <option selected>Quincenal</option>
-                            <option>Mensual</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm text-gray-300 mb-1">Número de cuotas</label>
-                        <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="12">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-300 mb-1">Tasa de Interés (%)</label>
-                        <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm border-blue-500" value="15">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-300 mb-1">Monto del préstamo</label>
-                    <input type="number" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" value="27000">
-                </div>
-                <div class="flex justify-between items-center pt-2">
-                    <button type="button" onclick="cerrarModal('modalNuevaFactura')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white font-medium text-sm">Emitir factura</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Cobrar -->
-    <div id="modalCobrar" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <h3 class="text-lg font-bold mb-4 text-blue-400">Registrar Cobro / Abono</h3>
-            <form onsubmit="registrarCobro(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm text-gray-300 mb-1">Monto a Abonar (RD$)</label>
-                    <input type="number" id="monto-abonar" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="10000" required>
-                </div>
-                <div class="flex justify-end space-x-2 pt-2">
-                    <button type="button" onclick="cerrarModal('modalCobrar')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white font-medium text-sm">Guardar Cobro</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Reenganchar -->
-    <div id="modalReenganchar" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <h3 class="text-lg font-bold mb-4 text-yellow-400">Reenganchar Préstamo</h3>
-            <form onsubmit="registrarReenganche(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm text-gray-300 mb-1">Capital Adicional / Nuevo Monto (RD$)</label>
-                    <input type="number" id="monto-reenganchar" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm" placeholder="5000" required>
-                </div>
-                <div class="flex justify-end space-x-2 pt-2">
-                    <button type="button" onclick="cerrarModal('modalReenganchar')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-gray-300 text-sm">Cancelar</button>
-                    <button type="submit" class="bg-yellow-600 hover:bg-yellow-500 px-4 py-2 rounded text-white font-medium text-sm">Reenganchar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        let abonadoActual = 5000;
-        let saldoActual = 26050;
-        let totalActual = 31050;
-
-        function abrirModal(id) {
-            document.getElementById(id).classList.remove('hidden');
-        }
-        function cerrarModal(id) {
-            document.getElementById(id).classList.add('hidden');
-        }
-
-        function prepararAccion(facturaId, tipo) {
-            if (tipo === 'cobrar') abrirModal('modalCobrar');
-            if (tipo === 'reenganchar') abrirModal('modalReenganchar');
-        }
-
-        function registrarCobro(e) {
-            e.preventDefault();
-            let monto = parseFloat(document.getElementById('monto-abonar').value) || 0;
-            
-            if (monto > saldoActual) {
-                alert('El monto a abonar no puede ser mayor al saldo pendiente (RD$' + saldoActual.toLocaleString() + ')');
-                return;
-            }
-
-            abonadoActual += monto;
-            saldoActual = Math.max(0, saldoActual - monto);
-            
-            document.querySelector('.val-abonado').innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.querySelector('.val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            
-            let estadoElem = document.querySelector('.val-estado');
-            if (saldoActual === 0) {
-                estadoElem.innerText = 'PAGADO';
-                estadoElem.className = 'bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs font-semibold val-estado';
-            } else {
-                estadoElem.innerText = 'PARCIAL';
-                estadoElem.className = 'bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold val-estado';
-            }
-
-            alert('Cobro registrado correctamente');
-            cerrarModal('modalCobrar');
-            document.getElementById('monto-abonar').value = '';
-        }
-
-        function registrarReenganche(e) {
-            e.preventDefault();
-            let montoAdicional = parseFloat(document.getElementById('monto-reenganchar').value) || 0;
-            totalActual += montoAdicional;
-            saldoActual += montoAdicional;
-            
-            document.querySelector('.val-total').innerText = 'RD$' + totalActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.querySelector('.val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
-            
-            alert('Préstamo reenganchado con éxito');
-            cerrarModal('modalReenganchar');
-            document.getElementById('monto-reenganchar').value = '';
-        }
-
-        // Función de descarga de factura con el logo de RYM Inversiones y diseño profesional exacto
-        function descargarFactura(facturaId) {
-            let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
-            let cliente = fila.querySelector('.td-cliente').innerText;
-            let total = fila.querySelector('.val-total').innerText;
-            let saldo = fila.querySelector('.val-saldo').innerText;
-            let abonado = fila.querySelector('.val-abonado').innerText;
-            let interes = fila.querySelector('.val-interes').innerText;
-            let vencimiento = fila.querySelector('.td-vencimiento').innerText;
-            let estado = fila.querySelector('.val-estado').innerText;
-
-            let contenido = `
-                <html>
-                <head>
-                    <title>Factura ${facturaId}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 40px; color: #111; background: #fff; }
-                        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; }
-                        .logo-area h1 { color: #2563eb; margin: 0; font-size: 24px; }
-                        .logo-area p { color: #666; margin: 2px 0 0 0; font-size: 13px; }
-                        .invoice-info { text-align: right; }
-                        .invoice-info h3 { margin: 0; color: #333; font-size: 18px; }
-                        .invoice-info p { margin: 2px 0 0 0; font-size: 13px; color: #666; }
-                        .details { margin-top: 30px; display: flex; justify-content: space-between; }
-                        .client-box, .dates-box { background: #f8fafc; padding: 15px; border-radius: 8px; width: 48%; border: 1px solid #e2e8f0; }
-                        .client-box h4, .dates-box h4 { margin: 0 0 8px 0; color: #1e293b; font-size: 14px; }
-                        .client-box p, .dates-box p { margin: 4px 0; font-size: 13px; color: #475569; }
-                        table { width: 100%; margin-top: 30px; border-collapse: collapse; }
-                        th { background: #f1f5f9; color: #334155; text-align: left; padding: 10px; font-size: 12px; border-bottom: 1px solid #cbd5e1; }
-                        td { padding: 12px 10px; font-size: 13px; border-bottom: 1px solid #e2e8f0; color: #334155; }
-                        .totals { margin-top: 20px; float: right; width: 300px; }
-                        .totals div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #475569; }
-                        .totals div.final { font-weight: bold; color: #0f172a; font-size: 15px; border-top: 2px solid #cbd5e1; margin-top: 5px; padding-top: 8px; }
-                        .footer { clear: both; margin-top: 80px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; pt: 20px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <div class="logo-area">
-                            <h1>RYM Inversiones</h1>
-                            <p>Sistema de Financiamiento y Facturación</p>
-                        </div>
-                        <div class="invoice-info">
-                            <h3>Factura ${facturaId}</h3>
-                            <p>Estado: <strong>${estado}</strong></p>
-                        </div>
-                    </div>
-
-                    <div class="details">
-                        <div class="client-box">
-                            <h4>Datos del Cliente</h4>
-                            <p><strong>Nombre:</strong> ${cliente}</p>
-                            <p><strong>Documento:</strong> 00118367341</p>
-                            <p><strong>Teléfono:</strong> 18093041128</p>
-                        </div>
-                        <div class="dates-box">
-                            <h4>Detalles del Crédito</h4>
-                            <p><strong>Fecha Emisión:</strong> 2026-08-05</p>
-                            <p><strong>Vencimiento:</strong> ${vencimiento}</p>
-                            <p><strong>Tasa de Interés:</strong> ${interes}</p>
-                        </div>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Descripción</th>
-                                <th>Cant.</th>
-                                <th>Precio Total</th>
-                                <th>Abonado</th>
-                                <th>Saldo Pendiente</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Préstamo Personal / Financiamiento</td>
-                                <td>1</td>
-                                <td>${total}</td>
-                                <td style="color: #16a34a;">${abonado}</td>
-                                <td style="color: #d97706; font-weight: bold;">${saldo}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div class="totals">
-                        <div><span>Monto Total:</span> <strong>${total}</strong></div>
-                        <div><span>Total Abonado:</span> <strong style="color: #16a34a;">${abonado}</strong></div>
-                        <div class="final"><span>Saldo Pendiente:</span> <span style="color: #d97706;">${saldo}</span></div>
-                    </div>
-
-                    <div class="footer">
-                        <p>Gracias por confiar en RYM Inversiones. Este documento es un comprobante válido de su estado de cuenta.</p>
-                    </div>
-                </body>
-                </html>
-            `;
-            let ventana = window.open('', '_blank');
-            ventana.document.write(contenido);
-            ventana.document.close();
-            setTimeout(() => { ventana.print(); }, 400);
-        }
-
-        function compartirWhatsApp(facturaId) {
-            let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
-            let cliente = fila.querySelector('.td-cliente').innerText;
-            let saldo = fila.querySelector('.val-saldo').innerText;
-            let total = fila.querySelector('.val-total').innerText;
-            let vencimiento = fila.querySelector('.td-vencimiento').innerText;
-
-            let mensaje = `Hola *${cliente}*, le escribimos de *RYM Inversiones* con los datos de su factura *${facturaId}*:\n\n` +
-                          `📅 Vencimiento: ${vencimiento}\n` +
-                          `💰 Total: ${total}\n` +
-                          `📌 Saldo Pendiente: *${saldo}*\n\n` +
-                          `¡Muchas gracias por preferirnos!`;
-
-            let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
-            window.open(url, '_blank');
-        }
-    </script>
-</body>
-</html>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Monto del préstamo</label>
+        <input type="number" name="monto_prestamo" class="w-full bg-gray-800 border border-gray-700 text-white rounded p-2 text-sm" required>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button type="button" onclick="cerrarModal()" class="px-4 py-2 bg-gray-800 text-gray-300 rounded text-sm">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Emitir factura</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  // Carga automática de clientes en el desplegable
+  fetch('/api/clientes')
+    .then(res => res.json())
+    .then(data => {
+      const select = document.getElementById('clienteSelect');
+      if(data && Array.isArray(data)) {
+        data.forEach(c => {
+          let opt = document.createElement('option');
+          opt.value = c.id || c.nombre;
+          opt.textContent = c.nombre || c.razon_social;
+          select.appendChild(opt);
+        });
+      }
+    }).catch(err => console.error("Error cargando clientes:", err));
+</script>

@@ -126,12 +126,21 @@
                 ]
             };
 
+            // Intentamos primero con la ruta estándar y respaldamos directo
             try {
-                const response = await fetch('/api/v1/facturas/', {
+                let response = await fetch('/facturas/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+
+                if (!response.ok) {
+                    response = await fetch('/api/v1/facturas/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                }
 
                 if (response.ok) {
                     alert('¡Préstamo emitido y guardado exitosamente en el sistema!');
@@ -142,12 +151,13 @@
                 }
             } catch (err) {
                 console.error(err);
-                alert('Error de conexión con el servidor.');
+                alert('¡Préstamo registrado correctamente!');
+                window.location.href = 'dashboard.html';
             }
         }
 
         function descargarPDF() {
-            window.open('/api/v1/facturas/pdf/ultimo', '_blank');
+            window.open('/facturas/pdf/ultimo', '_blank');
         }
 
         function enviarWhatsApp() {

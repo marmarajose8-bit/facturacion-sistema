@@ -67,7 +67,7 @@
                                 <button onclick="prepararAccion('FAC-000001', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
                                 <button onclick="prepararAccion('FAC-000001', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
                                 <button onclick="alert('PDF de la factura')" class="text-gray-400 hover:underline">PDF</button>
-                                <button onclick="enviarWhatsApp('FAC-000001')" class="text-green-400 hover:underline font-medium cursor-pointer">WhatsApp</button>
+                                <button onclick="enviarWhatsApp('FAC-000001')" class="text-green-400 hover:underline">WhatsApp</button>
                             </td>
                         </tr>
                     </tbody>
@@ -175,12 +175,27 @@
         function registrarCobro(e) {
             e.preventDefault();
             let monto = parseFloat(document.getElementById('monto-abonar').value) || 0;
+            
+            if (monto > saldoActual) {
+                alert('El monto a abonar no puede ser mayor al saldo pendiente (RD$' + saldoActual.toLocaleString() + ')');
+                return;
+            }
+
             abonadoActual += monto;
             saldoActual = Math.max(0, saldoActual - monto);
             
             document.querySelector('.val-abonado').innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
             document.querySelector('.val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
             
+            let estadoElem = document.querySelector('.val-estado');
+            if (saldoActual === 0) {
+                estadoElem.innerText = 'PAGADO';
+                estadoElem.className = 'bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs font-semibold val-estado';
+            } else {
+                estadoElem.innerText = 'PARCIAL';
+                estadoElem.className = 'bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold val-estado';
+            }
+
             alert('Cobro registrado correctamente');
             cerrarModal('modalCobrar');
             document.getElementById('monto-abonar').value = '';

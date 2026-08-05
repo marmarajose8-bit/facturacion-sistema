@@ -66,8 +66,8 @@
                             <td class="px-4 py-3 space-x-2">
                                 <button onclick="prepararAccion('FAC-000001', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
                                 <button onclick="prepararAccion('FAC-000001', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
-                                <button onclick="alert('PDF de la factura')" class="text-gray-400 hover:underline">PDF</button>
-                                <button onclick="enviarWhatsApp('FAC-000001')" class="text-green-400 hover:underline">WhatsApp</button>
+                                <button onclick="descargarFactura('FAC-000001')" class="text-gray-300 hover:text-white hover:underline font-medium">Descargar</button>
+                                <button onclick="compartirWhatsApp('FAC-000001')" class="text-green-400 hover:underline font-medium">WhatsApp</button>
                             </td>
                         </tr>
                     </tbody>
@@ -215,11 +215,52 @@
             document.getElementById('monto-reenganchar').value = '';
         }
 
-        function enviarWhatsApp(facturaId) {
+        // Función para descargar factura en formato limpio
+        function descargarFactura(facturaId) {
+            let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
+            let cliente = fila.querySelector('.td-cliente').innerText;
+            let total = fila.querySelector('.val-total').innerText;
+            let saldo = fila.querySelector('.val-saldo').innerText;
+            let abonado = fila.querySelector('.val-abonado').innerText;
+            let vencimiento = fila.querySelector('.td-vencimiento').innerText;
+
+            let contenido = `
+                <html>
+                <head><title>Factura ${facturaId}</title></head>
+                <body style="font-family: Arial; padding: 30px; color: #111;">
+                    <h2 style="color: #2563eb;">RYM Inversiones</h2>
+                    <h3>Comprobante de Factura: ${facturaId}</h3>
+                    <hr/>
+                    <p><strong>Cliente:</strong> ${cliente}</p>
+                    <p><strong>Vencimiento:</strong> ${vencimiento}</p>
+                    <p><strong>Total Préstamo:</strong> ${total}</p>
+                    <p><strong>Abonado:</strong> ${abonado}</p>
+                    <p><strong>Saldo Pendiente:</strong> ${saldo}</p>
+                    <hr/>
+                    <p style="text-align:center; font-size:12px; color:#666;">RYM Inversiones - Sistema de Facturación</p>
+                </body>
+                </html>
+            `;
+            let ventana = window.open('', '_blank');
+            ventana.document.write(contenido);
+            ventana.document.close();
+            setTimeout(() => { ventana.print(); }, 300);
+        }
+
+        // Función para compartir por WhatsApp
+        function compartirWhatsApp(facturaId) {
             let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
             let cliente = fila.querySelector('.td-cliente').innerText;
             let saldo = fila.querySelector('.val-saldo').innerText;
-            let mensaje = `Hola *${cliente}*, de parte de *RYM Inversiones* le recordamos su saldo pendiente de *${saldo}* correspondiente a la factura *${facturaId}*. ¡Muchas gracias!`;
+            let total = fila.querySelector('.val-total').innerText;
+            let vencimiento = fila.querySelector('.td-vencimiento').innerText;
+
+            let mensaje = `Hola *${cliente}*, le escribimos de *RYM Inversiones* con los datos de su factura *${facturaId}*:\n\n` +
+                          `📅 Vencimiento: ${vencimiento}\n` +
+                          `💰 Total: ${total}\n` +
+                          `📌 Saldo Pendiente: *${saldo}*\n\n` +
+                          `¡Muchas gracias por preferirnos!`;
+
             let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
             window.open(url, '_blank');
         }

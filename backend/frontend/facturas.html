@@ -58,5 +58,39 @@
             </div>
         </div>
     </main>
+
+    <!-- Modal para Nueva Factura -->
+    <div id="modalNuevaFactura" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4 text-blue-400">Emitir Nueva Factura / Préstamo</h3>
+            <form id="formNuevaFactura" onsubmit="event.preventDefault(); alert('Factura emitida correctamente'); cerrarModalNuevaFactura();">
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">ID del Cliente</label>
+                    <input type="number" id="cliente_id" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required value="3">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">Monto Capital (RD$)</label>
+                    <input type="number" id="monto" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required placeholder="20000">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">Tasa de Interés (%)</label>
+                    <input type="number" id="interes" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" required value="15">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="cerrarModalNuevaFactura()" class="bg-gray-700 px-4 py-2 rounded text-gray-300">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white font-medium">Emitir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalNuevaFactura() {
+            document.getElementById('modalNuevaFactura').classList.remove('hidden');
+        }
+        function cerrarModalNuevaFactura() {
+            document.getElementById('modalNuevaFactura').classList.add('hidden');
+        }
+    </script>
 </body>
 </html>

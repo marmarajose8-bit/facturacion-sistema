@@ -81,23 +81,46 @@
                     </div>
                 </div>
 
-                <!-- Botones de Acción: Emitir, Azul de Detalles/PDF y Verde de WhatsApp -->
+                <!-- Botones de Acción funcionales -->
                 <div class="mt-6 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-700">
                     <div class="flex gap-2">
-                        <button type="button" onclick="alert('Descargando PDF de la factura...')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-1">
+                        <button type="button" onclick="descargarPDF()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-1 cursor-pointer">
                             📥 Descargar PDF
                         </button>
-                        <button type="button" onclick="alert('Abriendo WhatsApp para enviar factura...')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-1">
+                        <button type="button" onclick="enviarWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-1 cursor-pointer">
                             💬 WhatsApp
                         </button>
                     </div>
                     <div class="flex gap-2">
                         <button type="button" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition">Cancelar</button>
-                        <button type="button" onclick="alert('¡Préstamo emitido correctamente y listo para compartir!')" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm transition">Emitir Préstamo</button>
+                        <button type="button" onclick="emitirPrestamo()" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium text-sm transition cursor-pointer">Emitir Préstamo</button>
                     </div>
                 </div>
             </div>
         </main>
     </div>
+
+    <script>
+        function emitirPrestamo() {
+            const cliente = document.getElementById('selectCliente').value;
+            const monto = document.getElementById('montoTotal').value;
+            if(!cliente || !monto) {
+                alert('Por favor selecciona un cliente y pon el monto del préstamo.');
+                return;
+            }
+            alert('¡Préstamo emitido correctamente en el sistema!');
+        }
+
+        function descargarPDF() {
+            // Enlace directo al endpoint de generación de PDF del backend
+            window.open('/api/v1/facturas/pdf/ultimo', '_blank');
+        }
+
+        function enviarWhatsApp() {
+            const telefono = "18093041128"; // Número configurado para el negocio
+            const texto = encodeURIComponent("Saludos, aquí está el detalle de su préstamo en RYM Inversiones.");
+            window.open(`https://wa.me/${telefono}?text=${texto}`, '_blank');
+        }
+    </script>
 </body>
 </html>

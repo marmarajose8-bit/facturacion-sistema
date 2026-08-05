@@ -36,7 +36,7 @@
                 <p class="text-xs text-gray-300 mb-4 bg-gray-900 p-3 rounded border border-gray-600">
                     <b>Paso 1:</b> Selecciona el cliente.<br>
                     <b>Paso 2:</b> Elige cada cuánto pagará (Semanal, Quincenal o Mensual).<br>
-                    <b>Paso 3:</b> Escribe el concepto y el monto total a cobrar. ¡Listo!
+                    <b>Paso 3:</b> Revisa la descripción predeterminada, pon el monto y emite.
                 </p>
 
                 <div class="space-y-4">
@@ -63,10 +63,10 @@
                         </div>
                     </div>
 
-                    <!-- Sustitución de "Ítems técnicos" por concepto claro -->
+                    <!-- Concepto predeterminado pero 100% editable -->
                     <div class="bg-gray-900 p-4 rounded border border-gray-700">
-                        <label class="block text-sm font-bold text-amber-400 mb-1">📝 Concepto del Préstamo</label>
-                        <input type="text" id="conceptoPrestamo" value="Préstamo personal" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mb-3" placeholder="Ej: Préstamo del mes">
+                        <label class="block text-sm font-bold text-amber-400 mb-1">📝 Descripción Predeterminada (Puedes cambiarla si deseas)</label>
+                        <input type="text" id="conceptoPrestamo" value="Préstamo personal con interés de la calle" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white mb-3" placeholder="Escribe o modifica la descripción aquí...">
 
                         <label class="block text-sm font-bold text-amber-400 mb-1">💰 Monto Total a Cobrar (RD$)</label>
                         <input type="number" id="montoTotal" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-lg font-bold text-amber-300" placeholder="0.00">

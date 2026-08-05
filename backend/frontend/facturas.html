@@ -56,7 +56,7 @@
                         <tr class="hover:bg-slate-800/40" data-id="FAC-000001">
                             <td class="px-4 py-3 font-medium text-white td-factura">FAC-000001</td>
                             <td class="px-4 py-3 td-cliente">jose gregorio manan santan</td>
-                            <td class="px-4 py-3 text-gray-400">4 ago de 2026</td>
+                            <td class="px-4 py-3 text-gray-400 td-vencimiento">4 ago de 2026</td>
                             <td class="px-4 py-3 text-white font-semibold val-total">RD$23,000.00</td>
                             <td class="px-4 py-3 text-blue-400 font-semibold val-interes">15%</td>
                             <td class="px-4 py-3 text-green-400 val-abonado">RD$5,000.00</td>
@@ -67,15 +67,15 @@
                             <td class="px-4 py-3 space-x-2">
                                 <button onclick="prepararAccion('FAC-000001', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
                                 <button onclick="prepararAccion('FAC-000001', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
-                                <button onclick="alert('Generando PDF...')" class="text-gray-400 hover:underline">PDF</button>
-                                <button onclick="alert('Enviando enlace por WhatsApp...')" class="text-green-400 hover:underline">WhatsApp</button>
+                                <button onclick="descargarPDF('FAC-000001')" class="text-gray-300 hover:text-white hover:underline font-medium">PDF</button>
+                                <button onclick="enviarWhatsApp('FAC-000001')" class="text-green-400 hover:underline font-medium">WhatsApp</button>
                             </td>
                         </tr>
                         <!-- Fila 2: Juan -->
                         <tr class="hover:bg-slate-800/40" data-id="FAC-000002">
                             <td class="px-4 py-3 font-medium text-white td-factura">FAC-000002</td>
                             <td class="px-4 py-3 td-cliente">juan perez diaz</td>
-                            <td class="px-4 py-3 text-gray-400">10 ago de 2026</td>
+                            <td class="px-4 py-3 text-gray-400 td-vencimiento">10 ago de 2026</td>
                             <td class="px-4 py-3 text-white font-semibold val-total">RD$11,500.00</td>
                             <td class="px-4 py-3 text-blue-400 font-semibold val-interes">15%</td>
                             <td class="px-4 py-3 text-green-400 val-abonado">RD$0.00</td>
@@ -86,8 +86,8 @@
                             <td class="px-4 py-3 space-x-2">
                                 <button onclick="prepararAccion('FAC-000002', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
                                 <button onclick="prepararAccion('FAC-000002', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
-                                <button onclick="alert('Generando PDF...')" class="text-gray-400 hover:underline">PDF</button>
-                                <button onclick="alert('Enviando enlace por WhatsApp...')" class="text-green-400 hover:underline">WhatsApp</button>
+                                <button onclick="descargarPDF('FAC-000002')" class="text-gray-300 hover:text-white hover:underline font-medium">PDF</button>
+                                <button onclick="enviarWhatsApp('FAC-000002')" class="text-green-400 hover:underline font-medium">WhatsApp</button>
                             </td>
                         </tr>
                     </tbody>
@@ -208,6 +208,7 @@
             let interes = parseFloat(document.getElementById('input-interes').value) || 0;
             let clienteNom = document.getElementById('input-cliente-nombre').value;
             let cuotasNum = document.getElementById('input-cuotas').value || 1;
+            let fechaVenc = document.getElementById('input-fecha').value;
 
             let ganancia = capital * (interes / 100);
             let total = capital + ganancia;
@@ -220,7 +221,7 @@
             nuevaFila.innerHTML = `
                 <td class="px-4 py-3 font-medium text-white td-factura">${nuevoId}</td>
                 <td class="px-4 py-3 td-cliente">${clienteNom}</td>
-                <td class="px-4 py-3 text-gray-400">4 ago de 2026</td>
+                <td class="px-4 py-3 text-gray-400 td-vencimiento">${fechaVenc}</td>
                 <td class="px-4 py-3 text-white font-semibold val-total">RD$${total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="px-4 py-3 text-blue-400 font-semibold val-interes">${interes}%</td>
                 <td class="px-4 py-3 text-green-400 val-abonado">RD$0.00</td>
@@ -231,13 +232,13 @@
                 <td class="px-4 py-3 space-x-2">
                     <button onclick="prepararAccion('${nuevoId}', 'cobrar')" class="text-blue-400 hover:underline font-medium">Cobrar</button>
                     <button onclick="prepararAccion('${nuevoId}', 'reenganchar')" class="text-yellow-400 hover:underline font-medium">Reenganchar</button>
-                    <button onclick="alert('Generando PDF...')" class="text-gray-400 hover:underline">PDF</button>
-                    <button onclick="alert('Enviando enlace por WhatsApp...')" class="text-green-400 hover:underline">WhatsApp</button>
+                    <button onclick="descargarPDF('${nuevoId}')" class="text-gray-300 hover:text-white hover:underline font-medium">PDF</button>
+                    <button onclick="enviarWhatsApp('${nuevoId}')" class="text-green-400 hover:underline font-medium">WhatsApp</button>
                 </td>
             `;
             tbody.appendChild(nuevaFila);
 
-            alert(`¡Factura ${nuevoId} emitida correctamente para ${clienteNom} con ${interes}% de interés!`);
+            alert(`¡Factura ${nuevoId} emitida correctamente para ${clienteNom}!`);
             cerrarModal('modalNuevaFactura');
             document.getElementById('input-capital').value = '';
             document.getElementById('input-cliente-nombre').value = '';
@@ -301,6 +302,58 @@
             alert(`Préstamo reenganchado con éxito para ${facturaId}. Se sumaron RD$${montoAdicional.toLocaleString()} de capital.`);
             cerrarModal('modalReenganchar');
             document.getElementById('monto-reenganchar').value = '';
+        }
+
+        // Función real para Descargar PDF (Crea un recibo imprimible/descargable)
+        function descargarPDF(facturaId) {
+            let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
+            let cliente = fila.querySelector('.td-cliente').innerText;
+            let total = fila.querySelector('.val-total').innerText;
+            let interes = fila.querySelector('.val-interes').innerText;
+            let abonado = fila.querySelector('.val-abonado').innerText;
+            let saldo = fila.querySelector('.val-saldo').innerText;
+            let vencimiento = fila.querySelector('.td-vencimiento').innerText;
+
+            let contenido = `
+                <html>
+                <head><title>Factura ${facturaId}</title></head>
+                <body style="font-family: Arial; padding: 40px; color: #333;">
+                    <h2 style="color: #2563eb;">RYM Inversiones</h2>
+                    <h3>Comprobante de Préstamo / Factura: ${facturaId}</h3>
+                    <hr/>
+                    <p><strong>Cliente:</strong> ${cliente}</p>
+                    <p><strong>Fecha de Vencimiento:</strong> ${vencimiento}</p>
+                    <p><strong>Monto Total:</strong> ${total}</p>
+                    <p><strong>Tasa de Interés:</strong> ${interes}</p>
+                    <p><strong>Abonado:</strong> ${abonado}</p>
+                    <p><strong>Saldo Pendiente:</strong> ${saldo}</p>
+                    <hr/>
+                    <p style="text-align: center; margin-top: 50px; font-size: 12px; color: #666;">Gracias por confiar en RYM Inversiones</p>
+                </body>
+                </html>
+            `;
+            let ventana = window.open('', '_blank');
+            ventana.document.write(contenido);
+            ventana.document.close();
+            ventana.print();
+        }
+
+        // Función real para enviar por WhatsApp
+        function enviarWhatsApp(facturaId) {
+            let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
+            let cliente = fila.querySelector('.td-cliente').innerText;
+            let total = fila.querySelector('.val-total').innerText;
+            let saldo = fila.querySelector('.val-saldo').innerText;
+            let vencimiento = fila.querySelector('.td-vencimiento').innerText;
+
+            let mensaje = `Hola *${cliente}*, de parte de *RYM Inversiones* le recordamos los detalles de su factura *${facturaId}*:\n\n` +
+                          `📅 Vencimiento: ${vencimiento}\n` +
+                          `💰 Monto Total: ${total}\n` +
+                          `📌 Saldo Pendiente: *${saldo}*\n\n` +
+                          `Favor realizar su abono a tiempo. ¡Muchas gracias!`;
+
+            let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
         }
     </script>
 </body>

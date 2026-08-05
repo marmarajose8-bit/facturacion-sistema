@@ -182,7 +182,7 @@
             }
 
             abonadoActual += monto;
-            saldoActual = Math.max(0, saldoActual - monto); // Se resta exactamente del saldo actual de la deuda
+            saldoActual = Math.max(0, saldoActual - monto);
             
             document.querySelector('.val-abonado').innerText = 'RD$' + abonadoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
             document.querySelector('.val-saldo').innerText = 'RD$' + saldoActual.toLocaleString('en-US', {minimumFractionDigits: 2});
@@ -196,7 +196,7 @@
                 estadoElem.className = 'bg-amber-500/10 text-amber-400 px-2 py-1 rounded text-xs font-semibold val-estado';
             }
 
-            alert('Cobro registrado correctamente. El saldo ha bajado en base a la deuda actual.');
+            alert('Cobro registrado correctamente');
             cerrarModal('modalCobrar');
             document.getElementById('monto-abonar').value = '';
         }
@@ -215,35 +215,106 @@
             document.getElementById('monto-reenganchar').value = '';
         }
 
+        // Función de descarga de factura con el logo de RYM Inversiones y diseño profesional exacto
         function descargarFactura(facturaId) {
             let fila = document.querySelector(`tr[data-id="${facturaId}"]`);
             let cliente = fila.querySelector('.td-cliente').innerText;
             let total = fila.querySelector('.val-total').innerText;
             let saldo = fila.querySelector('.val-saldo').innerText;
             let abonado = fila.querySelector('.val-abonado').innerText;
+            let interes = fila.querySelector('.val-interes').innerText;
             let vencimiento = fila.querySelector('.td-vencimiento').innerText;
+            let estado = fila.querySelector('.val-estado').innerText;
 
             let contenido = `
                 <html>
-                <head><title>Factura ${facturaId}</title></head>
-                <body style="font-family: Arial; padding: 30px; color: #111;">
-                    <h2 style="color: #2563eb;">RYM Inversiones</h2>
-                    <h3>Comprobante de Factura: ${facturaId}</h3>
-                    <hr/>
-                    <p><strong>Cliente:</strong> ${cliente}</p>
-                    <p><strong>Vencimiento:</strong> ${vencimiento}</p>
-                    <p><strong>Total Deuda:</strong> ${total}</p>
-                    <p><strong>Abonado:</strong> ${abonado}</p>
-                    <p><strong>Saldo Pendiente:</strong> ${saldo}</p>
-                    <hr/>
-                    <p style="text-align:center; font-size:12px; color:#666;">RYM Inversiones - Sistema de Facturación</p>
+                <head>
+                    <title>Factura ${facturaId}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 40px; color: #111; background: #fff; }
+                        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; }
+                        .logo-area h1 { color: #2563eb; margin: 0; font-size: 24px; }
+                        .logo-area p { color: #666; margin: 2px 0 0 0; font-size: 13px; }
+                        .invoice-info { text-align: right; }
+                        .invoice-info h3 { margin: 0; color: #333; font-size: 18px; }
+                        .invoice-info p { margin: 2px 0 0 0; font-size: 13px; color: #666; }
+                        .details { margin-top: 30px; display: flex; justify-content: space-between; }
+                        .client-box, .dates-box { background: #f8fafc; padding: 15px; border-radius: 8px; width: 48%; border: 1px solid #e2e8f0; }
+                        .client-box h4, .dates-box h4 { margin: 0 0 8px 0; color: #1e293b; font-size: 14px; }
+                        .client-box p, .dates-box p { margin: 4px 0; font-size: 13px; color: #475569; }
+                        table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+                        th { background: #f1f5f9; color: #334155; text-align: left; padding: 10px; font-size: 12px; border-bottom: 1px solid #cbd5e1; }
+                        td { padding: 12px 10px; font-size: 13px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+                        .totals { margin-top: 20px; float: right; width: 300px; }
+                        .totals div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #475569; }
+                        .totals div.final { font-weight: bold; color: #0f172a; font-size: 15px; border-top: 2px solid #cbd5e1; margin-top: 5px; padding-top: 8px; }
+                        .footer { clear: both; margin-top: 80px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; pt: 20px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo-area">
+                            <h1>RYM Inversiones</h1>
+                            <p>Sistema de Financiamiento y Facturación</p>
+                        </div>
+                        <div class="invoice-info">
+                            <h3>Factura ${facturaId}</h3>
+                            <p>Estado: <strong>${estado}</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="details">
+                        <div class="client-box">
+                            <h4>Datos del Cliente</h4>
+                            <p><strong>Nombre:</strong> ${cliente}</p>
+                            <p><strong>Documento:</strong> 00118367341</p>
+                            <p><strong>Teléfono:</strong> 18093041128</p>
+                        </div>
+                        <div class="dates-box">
+                            <h4>Detalles del Crédito</h4>
+                            <p><strong>Fecha Emisión:</strong> 2026-08-05</p>
+                            <p><strong>Vencimiento:</strong> ${vencimiento}</p>
+                            <p><strong>Tasa de Interés:</strong> ${interes}</p>
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Cant.</th>
+                                <th>Precio Total</th>
+                                <th>Abonado</th>
+                                <th>Saldo Pendiente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Préstamo Personal / Financiamiento</td>
+                                <td>1</td>
+                                <td>${total}</td>
+                                <td style="color: #16a34a;">${abonado}</td>
+                                <td style="color: #d97706; font-weight: bold;">${saldo}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="totals">
+                        <div><span>Monto Total:</span> <strong>${total}</strong></div>
+                        <div><span>Total Abonado:</span> <strong style="color: #16a34a;">${abonado}</strong></div>
+                        <div class="final"><span>Saldo Pendiente:</span> <span style="color: #d97706;">${saldo}</span></div>
+                    </div>
+
+                    <div class="footer">
+                        <p>Gracias por confiar en RYM Inversiones. Este documento es un comprobante válido de su estado de cuenta.</p>
+                    </div>
                 </body>
                 </html>
             `;
             let ventana = window.open('', '_blank');
             ventana.document.write(contenido);
             ventana.document.close();
-            setTimeout(() => { ventana.print(); }, 300);
+            setTimeout(() => { ventana.print(); }, 400);
         }
 
         function compartirWhatsApp(facturaId) {
@@ -255,7 +326,7 @@
 
             let mensaje = `Hola *${cliente}*, le escribimos de *RYM Inversiones* con los datos de su factura *${facturaId}*:\n\n` +
                           `📅 Vencimiento: ${vencimiento}\n` +
-                          `💰 Total Deuda: ${total}\n` +
+                          `💰 Total: ${total}\n` +
                           `📌 Saldo Pendiente: *${saldo}*\n\n` +
                           `¡Muchas gracias por preferirnos!`;
 

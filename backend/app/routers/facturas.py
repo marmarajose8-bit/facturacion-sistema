@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import List, Optional
 
 from dateutil.relativedelta import relativedelta
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
@@ -12,7 +12,9 @@ from app.core.security import decode_token
 from app.core.config import settings
 from app.models.cliente import Cliente
 from app.models.factura import Factura, FacturaItem, Cuota, EstadoFactura
-from app.schemas.factura import FacturaCreate, FacturaOut, ReenganeCreate, ReenganeElegibilidadOut
+from app.schemas.factura import (
+    FacturaCreate, FacturaOut, ReenganeCreate, ReenganeElegibilidadOut,
+)
 from app.services.numeracion import generar_numero_factura
 from app.services.mora import actualizar_estado_mora_factura
 from app.services.pdf_factura import generar_pdf_factura
@@ -22,7 +24,8 @@ router = APIRouter(prefix="/api/facturas", tags=["Facturación"], dependencies=[
 
 
 def _siguiente_vencimiento(base: date, numero: int, frecuencia: str) -> date:
-    """Cada cuánto cae la próxima cuota según la frecuencia de pago."""
+    """La frecuencia decide cada cuánto cae la próxima cuota:
+    diario -> +1 día, quincenal -> +15 días, mensual -> +1 mes (por defecto)."""
     if frecuencia == "diario":
         return base + relativedelta(days=numero - 1)
     if frecuencia == "quincenal":
@@ -30,11 +33,8 @@ def _siguiente_vencimiento(base: date, numero: int, frecuencia: str) -> date:
     return base + relativedelta(months=numero - 1)
 
 
-def _generar_plan_cuotas(total: Decimal, fecha_base: date, numero_cuotas: int, frecuencia: str) -> List[Cuota]:
-    """Reparte el total en cuotas iguales (con ajuste de redondeo en la última).
-    Se usa tanto al emitir una factura nueva como al crear la factura consolidada
-    de un reenganche.
-    """
+def generar_plan_cuotas(total: Decimal, fecha_vencimiento: date, numero_cuotas: int, frecuencia: str) -> List[Cuota]:
+    """Reparte el total en cuotas iguales (con ajuste de redondeo en la última)."""
     n_cuotas = max(numero_cuotas, 1)
     monto_por_cuota = (total / n_cuotas).quantize(Decimal("0.01"))
     acumulado = Decimal("0")
@@ -46,7 +46,7 @@ def _generar_plan_cuotas(total: Decimal, fecha_base: date, numero_cuotas: int, f
         acumulado += monto
         cuotas.append(Cuota(
             numero_cuota=i,
-            fecha_vencimiento=_siguiente_vencimiento(fecha_base, i, frecuencia),
+            fecha_vencimiento=_siguiente_vencimiento(fecha_vencimiento, i, frecuencia),
             monto_capital=monto,
             estado=EstadoFactura.pendiente,
         ))
@@ -86,28 +86,34 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
     if payload.frecuencia_pago not in ("diario", "quincenal", "mensual"):
         raise HTTPException(400, "Frecuencia inválida: usa diario, quincenal o mensual")
 
+    if not payload.items:
+        raise HTTPException(400, "Agrega al menos un ítem (ej. el préstamo o venta)")
+
     subtotal = Decimal("0")
-    impuestos = Decimal("0")
+    impuestos = Decimal("0")  # aquí también vive la "ganancia" pactada del préstamo (% de interés)
     items_db: List[FacturaItem] = []
 
     for item in payload.items:
         cant = Decimal(str(item.cantidad))
         precio = Decimal(str(item.precio_unitario))
-        pct_imp = Decimal(str(item.porcentaje_impuesto))
+        pct_interes = Decimal(str(item.porcentaje_impuesto))
 
         subtotal_linea = (cant * precio).quantize(Decimal("0.01"))
-        impuesto_linea = (subtotal_linea * pct_imp / 100).quantize(Decimal("0.01"))
+        interes_linea = (subtotal_linea * pct_interes / 100).quantize(Decimal("0.01"))
 
         subtotal += subtotal_linea
-        impuestos += impuesto_linea
+        impuestos += interes_linea
+
+        descripcion = item.descripcion or (
+            f"Préstamo con {pct_interes:g}% de interés" if pct_interes > 0
+            else settings.PRESTAMO_DESCRIPCION_DEFECTO
+        )
 
         items_db.append(FacturaItem(
-            # Si el usuario dejó la descripción en blanco, se usa un texto
-            # predeterminado en vez de bloquear la emisión de la factura/PDF.
-            descripcion=item.descripcion or settings.PRESTAMO_DESCRIPCION_DEFECTO,
+            descripcion=descripcion,
             cantidad=cant,
             precio_unitario=precio,
-            porcentaje_impuesto=pct_imp,
+            porcentaje_impuesto=pct_interes,
             subtotal_linea=subtotal_linea,
         ))
 
@@ -129,13 +135,7 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         notas=payload.notas,
         items=items_db,
     )
-
-    # Generar plan de cuotas si aplica (reparto igualitario de capital).
-    # La frecuencia decide cada cuánto cae la próxima cuota:
-    #   diario -> +1 día, quincenal -> +15 días, mensual -> +1 mes (por defecto)
-    factura.cuotas = _generar_plan_cuotas(
-        total, payload.fecha_vencimiento, payload.numero_cuotas, payload.frecuencia_pago
-    )
+    factura.cuotas = generar_plan_cuotas(total, payload.fecha_vencimiento, payload.numero_cuotas, payload.frecuencia_pago)
 
     db.add(factura)
     db.commit()
@@ -146,7 +146,7 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
 @router.get("/{factura_id}", response_model=FacturaOut)
 def obtener_factura(factura_id: int, db: Session = Depends(get_db)):
     factura = db.query(Factura).options(
-        joinedload(Factura.items), joinedload(Factura.cuotas)
+        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.cliente)
     ).get(factura_id)
     if not factura:
         raise HTTPException(404, "Factura no encontrada")
@@ -172,49 +172,6 @@ def descargar_pdf_factura(factura_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{factura_id}/reenganche/elegibilidad", response_model=ReenganeElegibilidadOut)
-def elegibilidad_reenganche(factura_id: int, db: Session = Depends(get_db)):
-    """Consulta rápida (sin efectos secundarios en BD más allá del recálculo
-    de mora habitual) para que el frontend muestre si el cliente ya puede
-    reenganchar y cuánto lleva pagado, antes de intentar la operación."""
-    factura = db.query(Factura).get(factura_id)
-    if not factura:
-        raise HTTPException(404, "Factura no encontrada")
-
-    actualizar_estado_mora_factura(factura)
-    db.commit()
-
-    return calcular_elegibilidad(factura)
-
-
-@router.post("/{factura_id}/reenganche", response_model=FacturaOut, status_code=201)
-def reenganchar_factura(factura_id: int, payload: ReenganeCreate, db: Session = Depends(get_db)):
-    """Amplía/reengancha un préstamo activo: consolida el saldo pendiente de
-    `factura_id` más `monto_adicional` en una factura nueva, y cierra la
-    anterior como 'reenganchada' (sin borrar su historial de pagos)."""
-    factura = db.query(Factura).get(factura_id)
-    if not factura:
-        raise HTTPException(404, "Factura no encontrada")
-
-    if payload.frecuencia_pago and payload.frecuencia_pago not in ("diario", "quincenal", "mensual"):
-        raise HTTPException(400, "Frecuencia inválida: usa diario, quincenal o mensual")
-
-    nueva_factura = ejecutar_reenganche(
-        db=db,
-        factura=factura,
-        monto_adicional=Decimal(str(payload.monto_adicional)),
-        fecha_vencimiento=payload.fecha_vencimiento,
-        numero_cuotas=payload.numero_cuotas,
-        frecuencia_pago=payload.frecuencia_pago,
-        descripcion=payload.descripcion,
-        generar_plan_cuotas_fn=_generar_plan_cuotas,
-    )
-
-    db.commit()
-    db.refresh(nueva_factura)
-    return nueva_factura
-
-
 @router.post("/{factura_id}/anular", response_model=FacturaOut)
 def anular_factura(factura_id: int, db: Session = Depends(get_db)):
     factura = db.query(Factura).get(factura_id)
@@ -226,3 +183,34 @@ def anular_factura(factura_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(factura)
     return factura
+
+
+@router.get("/{factura_id}/reenganche/elegibilidad", response_model=ReenganeElegibilidadOut)
+def ver_elegibilidad_reenganche(factura_id: int, db: Session = Depends(get_db)):
+    factura = db.query(Factura).get(factura_id)
+    if not factura:
+        raise HTTPException(404, "Factura no encontrada")
+    actualizar_estado_mora_factura(factura)
+    db.commit()
+    return calcular_elegibilidad(factura)
+
+
+@router.post("/{factura_id}/reenganche", response_model=FacturaOut, status_code=201)
+def reenganchar_factura(factura_id: int, payload: ReenganeCreate, db: Session = Depends(get_db)):
+    factura = db.query(Factura).get(factura_id)
+    if not factura:
+        raise HTTPException(404, "Factura no encontrada")
+
+    nueva_factura = ejecutar_reenganche(
+        db=db,
+        factura=factura,
+        monto_adicional=Decimal(str(payload.monto_adicional)),
+        fecha_vencimiento=payload.fecha_vencimiento,
+        numero_cuotas=payload.numero_cuotas,
+        frecuencia_pago=payload.frecuencia_pago,
+        descripcion=payload.descripcion,
+        generar_plan_cuotas_fn=generar_plan_cuotas,
+    )
+    db.commit()
+    db.refresh(nueva_factura)
+    return nueva_factura

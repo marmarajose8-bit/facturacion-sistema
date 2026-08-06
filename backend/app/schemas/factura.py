@@ -108,6 +108,15 @@ class FacturaOut(BaseModel):
     estado: str
     estado_mora: str
     dias_atraso: int
+
+    # --- Resumen de cuenta: historial de abonos, saldo restante y cuota actual ---
+    total_abonado: float          # cuánto ha pagado el cliente hasta la fecha
+    saldo_pendiente: float        # cuánto le falta exactamente por pagar
+    total_cuotas: int             # plazo total del préstamo en cuotas
+    cuotas_pagadas: int           # cuántas cuotas ya saldó por completo
+    cuota_actual: int             # en qué número de cuota va
+    texto_cuota: str              # ej. "Cuota 2 de 6", listo para mostrar
+
     items: List[FacturaItemOut] = []
     cuotas: List[CuotaOut] = []
     creado_en: datetime

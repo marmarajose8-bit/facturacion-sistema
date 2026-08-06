@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import decode_token
 from app.models.cliente import Cliente
+from app.models.factura import Factura, FacturaItem, Cuota
+from app.models.pago import Pago, Recibo
 from app.schemas.cliente import ClienteCreate, ClienteUpdate, ClienteOut
 
 router = APIRouter(prefix="/api/clientes", tags=["Clientes"], dependencies=[Depends(decode_token)])
@@ -66,4 +68,31 @@ def desactivar_cliente(cliente_id: int, db: Session = Depends(get_db)):
     if not cliente:
         raise HTTPException(404, "Cliente no encontrado")
     cliente.activo = False
+    db.commit()
+
+
+@router.delete("/{cliente_id}/permanente", status_code=204)
+def eliminar_cliente_permanente(cliente_id: int, db: Session = Depends(get_db)):
+    """Borra al cliente y TODO su historial financiero (facturas, cuotas, ítems,
+    pagos y recibos). Es IRREVERSIBLE — pensado para limpiar clientes de PRUEBA,
+    no para uso normal con clientes reales (para eso está el DELETE de arriba,
+    que solo lo desactiva y conserva su historial)."""
+    cliente = db.query(Cliente).get(cliente_id)
+    if not cliente:
+        raise HTTPException(404, "Cliente no encontrado")
+
+    factura_ids = [f.id for f in db.query(Factura.id).filter(Factura.cliente_id == cliente_id)]
+    if factura_ids:
+        pago_ids = [p.id for p in db.query(Pago.id).filter(Pago.factura_id.in_(factura_ids))]
+        if pago_ids:
+            db.query(Recibo).filter(Recibo.pago_id.in_(pago_ids)).delete(synchronize_session=False)
+            db.query(Pago).filter(Pago.id.in_(pago_ids)).delete(synchronize_session=False)
+        db.query(Cuota).filter(Cuota.factura_id.in_(factura_ids)).delete(synchronize_session=False)
+        db.query(FacturaItem).filter(FacturaItem.factura_id.in_(factura_ids)).delete(synchronize_session=False)
+        db.query(Factura).filter(Factura.cliente_id == cliente_id).update(
+            {"factura_origen_id": None}, synchronize_session=False
+        )
+        db.query(Factura).filter(Factura.id.in_(factura_ids)).delete(synchronize_session=False)
+
+    db.delete(cliente)
     db.commit()

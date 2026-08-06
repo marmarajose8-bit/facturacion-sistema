@@ -48,7 +48,7 @@
       <table class="ledger w-full" style="min-width:680px;">
         <thead>
           <tr>
-            <th>Cliente</th><th>Documento</th><th>Contacto</th><th>Límite crédito</th><th>Estado</th><th></th>
+            <th>Cliente</th><th>Documento</th><th>Contacto</th><th>Límite crédito</th><th>Estado</th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="tablaClientes"></tbody>
@@ -129,8 +129,21 @@ async function cargar() {
         <td class="font-mono-ledger" data-label="Límite crédito">${fmt.money(c.limite_credito)}</td>
         <td data-label="Estado"><span class="badge ${c.activo ? "badge-pagada" : "badge-anulada"}">${c.activo ? "Activo" : "Inactivo"}</span></td>
         <td><a href="facturas.html?cliente_id=${c.id}" class="text-sm" style="color:var(--accent)">Ver facturas</a></td>
+        <td><button onclick="eliminarCliente(${c.id}, '${(c.razon_social || "").replace(/'/g, "\\'")}')" class="text-sm" style="color:var(--danger-2)">Eliminar</button></td>
       </tr>
     `).join("") || `<tr><td colspan="6" class="text-center py-8" style="color:var(--text-dim)">Sin clientes registrados aún.</td></tr>`;
+  } catch (err) { toast(err.message, "error"); }
+}
+
+async function eliminarCliente(id, nombre) {
+  const confirmacion = prompt(
+    `Esto borra a "${nombre}" y TODO su historial (facturas, pagos, recibos) de forma PERMANENTE e IRREVERSIBLE.\n\nEscribe BORRAR para confirmar:`
+  );
+  if (confirmacion !== "BORRAR") { toast("Cancelado — no se borró nada", "error"); return; }
+  try {
+    await api(`/api/clientes/${id}/permanente`, { method: "DELETE" });
+    toast("Cliente eliminado permanentemente");
+    cargar();
   } catch (err) { toast(err.message, "error"); }
 }
 

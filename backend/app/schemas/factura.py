@@ -30,7 +30,7 @@ class FacturaCreate(BaseModel):
     cliente_id: int
     fecha_vencimiento: date
     numero_cuotas: int = 1  # 1 = pago único, >1 genera plan de cuotas
-    frecuencia_pago: str = "mensual"  # diario | quincenal | mensual
+    frecuencia_pago: str = "mensual"  # semanal | quincenal | mensual
     descuento: float = 0
     notas: Optional[str] = None
     items: List[FacturaItemCreate]

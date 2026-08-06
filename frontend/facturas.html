@@ -7,6 +7,14 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/css/styles.css" />
+<style>
+  .asistente-opcion, .asistente-cliente-item {
+    display:block; padding:1rem 1.1rem; border-radius:0.6rem;
+    background:var(--panel-2); border:2px solid var(--border); cursor:pointer;
+    transition: border-color .15s ease; width:100%; text-align:left;
+  }
+  .asistente-opcion:hover, .asistente-cliente-item:hover { border-color:var(--accent); }
+</style>
 </head>
 <body class="min-h-screen">
 <div class="flex flex-col md:flex-row">
@@ -36,7 +44,10 @@
         <h1 class="text-2xl font-semibold">Facturas</h1>
         <p class="text-sm" style="color:var(--text-dim)">Emisión, cuotas y estado de cobro</p>
       </div>
-      <button class="btn-primary" onclick="abrirModalFactura()">+ Nueva factura</button>
+      <div class="flex gap-2">
+        <button class="btn-primary" style="font-size:1rem; padding:0.75rem 1.25rem;" onclick="abrirAsistente()">🧭 Ayúdame a llenarla</button>
+        <button class="btn-ghost" onclick="abrirModalFactura()">+ Nueva factura (avanzado)</button>
+      </div>
     </div>
 
     <div class="panel overflow-hidden mb-8">
@@ -54,6 +65,79 @@
   </main>
 </div>
 
+<!-- Modal Asistente (modo fácil, paso a paso) -->
+<div id="modalAsistente" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-3 sm:p-6">
+  <div class="panel p-5 sm:p-8 w-full max-w-lg" style="font-size:1.05rem;">
+
+    <div class="flex items-center justify-between mb-5">
+      <p class="text-xs" style="color:var(--text-dim)">Paso <span id="asistentePasoActual">1</span> de 4</p>
+      <button type="button" onclick="cerrarAsistente()" style="color:var(--text-dim)" class="text-sm">✕ Cerrar</button>
+    </div>
+
+    <!-- Paso 1: Cliente -->
+    <div id="asistentePaso1">
+      <h2 class="text-xl font-semibold mb-1">¿Para quién es esta factura?</h2>
+      <p class="text-sm mb-4" style="color:var(--text-dim)">Escribe el nombre y toca al cliente.</p>
+      <input id="asistenteBuscarCliente" class="w-full mb-3" placeholder="Escribe el nombre del cliente..." oninput="asistenteFiltrarClientes()" style="padding:0.85rem; font-size:1.1rem;" />
+      <div id="asistenteListaClientes" class="space-y-2" style="max-height:280px; overflow-y:auto;"></div>
+      <p class="text-xs mt-3" style="color:var(--text-dim)">¿El cliente no existe todavía? Ve primero a <a href="clientes.html" style="color:var(--accent)">Clientes</a> y créalo, luego vuelve aquí.</p>
+    </div>
+
+    <!-- Paso 2: Monto -->
+    <div id="asistentePaso2" class="hidden">
+      <h2 class="text-xl font-semibold mb-1">¿Cuánto es el monto?</h2>
+      <p class="text-sm mb-4" style="color:var(--text-dim)">Cliente: <b id="asistenteClienteNombre" style="color:var(--accent)"></b></p>
+      <input type="number" id="asistenteMonto" class="w-full mb-4 text-center" placeholder="0.00" style="padding:1rem; font-size:1.8rem; font-weight:700;" />
+      <div class="flex justify-between gap-3">
+        <button type="button" class="btn-ghost" onclick="asistenteIrPaso(1)">← Atrás</button>
+        <button type="button" class="btn-primary flex-1" onclick="asistenteValidarMonto()">Siguiente →</button>
+      </div>
+    </div>
+
+    <!-- Paso 3: Frecuencia -->
+    <div id="asistentePaso3" class="hidden">
+      <h2 class="text-xl font-semibold mb-1">¿Cada cuánto te va a pagar?</h2>
+      <p class="text-sm mb-4" style="color:var(--text-dim)">Toca una opción.</p>
+      <div class="space-y-2 mb-4">
+        <button type="button" class="asistente-opcion" data-valor="semanal" onclick="asistenteElegirFrecuencia('semanal')">
+          <b>Semanal</b><br><span class="text-xs" style="color:var(--text-dim)">Paga una vez por semana</span>
+        </button>
+        <button type="button" class="asistente-opcion" data-valor="quincenal" onclick="asistenteElegirFrecuencia('quincenal')">
+          <b>Quincenal</b><br><span class="text-xs" style="color:var(--text-dim)">Paga los días 15 y 30 de cada mes</span>
+        </button>
+        <button type="button" class="asistente-opcion" data-valor="mensual" onclick="asistenteElegirFrecuencia('mensual')">
+          <b>Mensual</b><br><span class="text-xs" style="color:var(--text-dim)">Paga una vez al mes</span>
+        </button>
+      </div>
+      <button type="button" class="btn-ghost" onclick="asistenteIrPaso(2)">← Atrás</button>
+    </div>
+
+    <!-- Paso 4: Cuotas + Confirmar -->
+    <div id="asistentePaso4" class="hidden">
+      <h2 class="text-xl font-semibold mb-1">¿En cuántas partes va a pagar?</h2>
+      <p class="text-sm mb-4" style="color:var(--text-dim)">Si te va a pagar todo de una vez, deja el número en 1.</p>
+      <div class="flex items-center justify-center gap-4 mb-5">
+        <button type="button" class="btn-ghost" style="font-size:1.5rem; width:3rem;" onclick="asistenteCambiarCuotas(-1)">−</button>
+        <span id="asistenteCuotasValor" style="font-size:2rem; font-weight:700; min-width:3ch; text-align:center;">1</span>
+        <button type="button" class="btn-ghost" style="font-size:1.5rem; width:3rem;" onclick="asistenteCambiarCuotas(1)">+</button>
+      </div>
+
+      <div class="p-4 rounded-lg mb-4" style="background:var(--panel-2); border:1px solid var(--border);">
+        <p class="text-sm mb-1">Vas a emitir una factura para:</p>
+        <p><b id="asistenteResumenCliente"></b></p>
+        <p>Monto: <b id="asistenteResumenMonto" style="color:var(--accent)"></b></p>
+        <p>Cobro: <b id="asistenteResumenFrecuencia"></b>, en <b id="asistenteResumenCuotas"></b> cuota(s)</p>
+      </div>
+
+      <div class="flex justify-between gap-3">
+        <button type="button" class="btn-ghost" onclick="asistenteIrPaso(3)">← Atrás</button>
+        <button type="button" class="btn-primary flex-1" onclick="asistenteEmitir()">✅ Sí, emitir factura</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- Modal nueva factura -->
 <div id="modalFactura" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
   <div class="panel p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -65,7 +149,7 @@
         <input id="llenadoRapidoTexto" class="w-full" placeholder="Ej: Juan Pérez, 5000, quincenal" />
         <button type="button" class="btn-ghost whitespace-nowrap" onclick="llenarRapido()">Llenar</button>
       </div>
-      <p class="text-xs mt-1" style="color:var(--text-dim)">Frecuencia: diario, quincenal o mensual (si no la escribes, queda en mensual).</p>
+      <p class="text-xs mt-1" style="color:var(--text-dim)">Frecuencia: semanal, quincenal o mensual (si no la escribes, queda en mensual).</p>
     </div>
 
     <form id="formFactura" class="space-y-3">
@@ -83,7 +167,7 @@
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Frecuencia de cobro</label>
           <select id="frecuencia_pago" class="w-full mt-1">
-            <option value="diario">Diario</option>
+            <option value="semanal">Semanal</option>
             <option value="quincenal">Quincenal (15 y 30)</option>
             <option value="mensual" selected>Mensual</option>
           </select>
@@ -96,8 +180,11 @@
 
       <div class="pt-2">
         <div class="flex items-center justify-between mb-2">
-          <label class="text-xs" style="color:var(--text-dim)">Ítems de la factura</label>
-          <button type="button" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar ítem</button>
+          <label class="text-xs" style="color:var(--text-dim)">Monto del préstamo</label>
+          <div class="flex items-center gap-3">
+            <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="toggleAvanzado()">opciones avanzadas</button>
+            <button type="button" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar otro concepto</button>
+          </div>
         </div>
         <div id="itemsContainer" class="space-y-2"></div>
       </div>
@@ -121,23 +208,13 @@
         <input type="number" step="0.01" id="pago_monto" required class="w-full mt-1" oninput="actualizarVuelto()" />
       </div>
       <p id="pago_vuelto_info" class="text-sm hidden" style="color:var(--accent)"></p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="text-xs" style="color:var(--text-dim)">Tipo</label>
-          <select id="pago_tipo" class="w-full mt-1">
-            <option value="abono">Abono</option>
-            <option value="total">Pago total</option>
-          </select>
-        </div>
-        <div>
-          <label class="text-xs" style="color:var(--text-dim)">Método</label>
-          <select id="pago_metodo" class="w-full mt-1" onchange="actualizarVuelto()">
-            <option value="efectivo">Efectivo</option>
-            <option value="transferencia">Transferencia</option>
-            <option value="tarjeta">Tarjeta</option>
-            <option value="cheque">Cheque</option>
-          </select>
-        </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Método de pago</label>
+        <select id="pago_metodo" class="w-full mt-1" onchange="actualizarVuelto()">
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia</option>
+          <option value="tarjeta">Tarjeta</option>
+        </select>
       </div>
       <div>
         <label class="text-xs" style="color:var(--text-dim)">Referencia (opcional)</label>
@@ -192,7 +269,16 @@ document.getElementById("usuarioNombre").textContent = Auth.getUsuario()?.nombre
 const urlParams = new URLSearchParams(window.location.search);
 const clienteFiltro = urlParams.get("cliente_id");
 
-function abrirModalFactura() { document.getElementById("modalFactura").classList.remove("hidden"); document.getElementById("modalFactura").classList.add("flex"); cargarClientesSelect(); }
+function abrirModalFactura() {
+  document.getElementById("modalFactura").classList.remove("hidden");
+  document.getElementById("modalFactura").classList.add("flex");
+  cargarClientesSelect();
+  // Siempre arranca con una fila lista para llenar, para no depender de que
+  // recuerden hacer clic en "+ agregar" antes de poder escribir el monto.
+  document.getElementById("itemsContainer").innerHTML = "";
+  itemCount = 0;
+  agregarItem();
+}
 function cerrarModalFactura() { document.getElementById("modalFactura").classList.add("hidden"); document.getElementById("modalFactura").classList.remove("flex"); }
 function abrirModalPago(facturaId) {
   document.getElementById("pago_factura_id").value = facturaId;
@@ -262,15 +348,30 @@ function agregarItem() {
   itemCount++;
   const id = itemCount;
   const div = document.createElement("div");
-  div.className = "grid grid-cols-12 gap-2 items-center item-row";
+  div.className = "item-row p-2 rounded-lg";
+  div.style.border = "1px solid var(--border)";
   div.innerHTML = `
-    <input class="col-span-5 item-desc" placeholder="Descripción (opcional — si se deja vacío usa 'Préstamo personal')" />
-    <input type="number" step="0.01" class="col-span-2 item-cant" placeholder="Cant." value="1" required />
-    <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Precio unit." required />
-    <input type="number" step="0.01" class="col-span-1 item-imp" placeholder="% imp." value="0" />
-    <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.parentElement.remove()">✕</button>
+    <div class="grid grid-cols-12 gap-2 items-center">
+      <input class="col-span-8 item-desc" placeholder="Descripción (opcional)" />
+      <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Monto" required />
+      <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.closest('.item-row').remove()">✕</button>
+    </div>
+    <div class="item-avanzado hidden grid grid-cols-2 gap-2 items-center mt-2">
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Cantidad</label>
+        <input type="number" step="0.01" class="w-full mt-1 item-cant" value="1" />
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">% impuesto</label>
+        <input type="number" step="0.01" class="w-full mt-1 item-imp" value="0" />
+      </div>
+    </div>
   `;
   document.getElementById("itemsContainer").appendChild(div);
+}
+
+function toggleAvanzado() {
+  document.querySelectorAll(".item-avanzado").forEach(el => el.classList.toggle("hidden"));
 }
 
 let clientesCache = [];
@@ -285,10 +386,88 @@ function normalizar(txt) {
 
 function calcularVencimiento(frecuencia) {
   const hoy = new Date();
-  if (frecuencia === "diario") hoy.setDate(hoy.getDate() + 1);
+  if (frecuencia === "semanal") hoy.setDate(hoy.getDate() + 7);
+  else if (frecuencia === "semanal") hoy.setDate(hoy.getDate() + 7);
   else if (frecuencia === "quincenal") hoy.setDate(hoy.getDate() + 15);
   else hoy.setMonth(hoy.getMonth() + 1);
   return hoy.toISOString().slice(0, 10);
+}
+
+/* ================== ASISTENTE PASO A PASO (modo fácil) ================== */
+const asistenteEtiquetas = { semanal: "Semanal", quincenal: "Quincenal (15 y 30)", mensual: "Mensual" };
+let asistente = { clienteId: null, clienteNombre: "", monto: null, frecuencia: null, cuotas: 1 };
+
+async function abrirAsistente() {
+  asistente = { clienteId: null, clienteNombre: "", monto: null, frecuencia: null, cuotas: 1 };
+  document.getElementById("asistenteBuscarCliente").value = "";
+  document.getElementById("asistenteMonto").value = "";
+  document.getElementById("modalAsistente").classList.remove("hidden");
+  document.getElementById("modalAsistente").classList.add("flex");
+  if (clientesCache.length === 0) await cargarClientesSelect();
+  asistenteFiltrarClientes();
+  asistenteIrPaso(1);
+}
+function cerrarAsistente() {
+  document.getElementById("modalAsistente").classList.add("hidden");
+  document.getElementById("modalAsistente").classList.remove("flex");
+}
+function asistenteIrPaso(n) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById("asistentePaso" + i);
+    if (el) el.classList.toggle("hidden", i !== n);
+  }
+  document.getElementById("asistentePasoActual").textContent = n;
+}
+function asistenteFiltrarClientes() {
+  const texto = normalizar(document.getElementById("asistenteBuscarCliente").value);
+  const lista = document.getElementById("asistenteListaClientes");
+  const coincidencias = clientesCache.filter(c => !texto || normalizar(c.razon_social).includes(texto));
+  lista.innerHTML = coincidencias.slice(0, 30).map(c =>
+    `<button type="button" class="asistente-cliente-item" onclick="asistenteElegirCliente(${c.id}, '${c.razon_social.replace(/'/g, "\\'")}')">${c.razon_social}</button>`
+  ).join("") || `<p class="text-sm" style="color:var(--text-dim)">No hay clientes que coincidan.</p>`;
+}
+function asistenteElegirCliente(id, nombre) {
+  asistente.clienteId = id;
+  asistente.clienteNombre = nombre;
+  document.getElementById("asistenteClienteNombre").textContent = nombre;
+  asistenteIrPaso(2);
+  setTimeout(() => document.getElementById("asistenteMonto").focus(), 50);
+}
+function asistenteValidarMonto() {
+  const monto = parseFloat(document.getElementById("asistenteMonto").value);
+  if (isNaN(monto) || monto <= 0) { toast("Escribe un monto válido, mayor que cero", "error"); return; }
+  asistente.monto = monto;
+  asistenteIrPaso(3);
+}
+function asistenteElegirFrecuencia(valor) {
+  asistente.frecuencia = valor;
+  asistenteActualizarResumen();
+  asistenteIrPaso(4);
+}
+function asistenteCambiarCuotas(delta) {
+  asistente.cuotas = Math.max(1, asistente.cuotas + delta);
+  asistenteActualizarResumen();
+}
+function asistenteActualizarResumen() {
+  document.getElementById("asistenteCuotasValor").textContent = asistente.cuotas;
+  document.getElementById("asistenteResumenCliente").textContent = asistente.clienteNombre;
+  document.getElementById("asistenteResumenMonto").textContent = fmt.money(asistente.monto);
+  document.getElementById("asistenteResumenFrecuencia").textContent = asistenteEtiquetas[asistente.frecuencia] || "";
+  document.getElementById("asistenteResumenCuotas").textContent = asistente.cuotas;
+}
+async function asistenteEmitir() {
+  try {
+    await api("/api/facturas", { method: "POST", body: {
+      cliente_id: asistente.clienteId,
+      fecha_vencimiento: calcularVencimiento(asistente.frecuencia),
+      frecuencia_pago: asistente.frecuencia,
+      numero_cuotas: asistente.cuotas,
+      items: [{ descripcion: "Préstamo / Venta", precio_unitario: asistente.monto, cantidad: 1, porcentaje_impuesto: 0 }],
+    }});
+    toast("¡Listo! Factura emitida correctamente");
+    cerrarAsistente();
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
 }
 
 function llenarRapido() {
@@ -302,7 +481,7 @@ function llenarRapido() {
   const frecuenciaTexto = normalizar(partes[2] || "mensual");
 
   let frecuencia = "mensual";
-  if (frecuenciaTexto.startsWith("diari")) frecuencia = "diario";
+  if (frecuenciaTexto.startsWith("diari") || frecuenciaTexto.startsWith("seman")) frecuencia = "semanal";
   else if (frecuenciaTexto.startsWith("quincen")) frecuencia = "quincenal";
   else if (frecuenciaTexto.startsWith("mensual")) frecuencia = "mensual";
 
@@ -384,10 +563,14 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
   const facturaAntes = facturasPorId[facturaId]; // guardamos referencia antes de recargar la lista
   try {
     const monto = parseFloat(document.getElementById("pago_monto").value);
+    // El tipo (abono/pago total) se determina solo, comparando el monto con el
+    // saldo pendiente — así el usuario no tiene que decidirlo ni puede
+    // equivocarse dejando un dato que no coincide con lo que realmente pagó.
+    const tipoPago = facturaAntes && monto >= facturaAntes.saldo_pendiente ? "total" : "abono";
     const pagoRegistrado = await api("/api/pagos", { method: "POST", body: {
       factura_id: facturaId,
       monto,
-      tipo_pago: document.getElementById("pago_tipo").value,
+      tipo_pago: tipoPago,
       metodo_pago: document.getElementById("pago_metodo").value,
       referencia: document.getElementById("pago_referencia").value || null,
     }});

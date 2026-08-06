@@ -41,7 +41,7 @@ class Factura(Base):
     fecha_emision = Column(Date, server_default=func.current_date())
     fecha_vencimiento = Column(Date, nullable=False)
 
-    # Cada cuánto cobra: diario, quincenal (15 y 30) o mensual
+    # Cada cuánto cobra: semanal, quincenal (15 y 30) o mensual
     frecuencia_pago = Column(String(20), nullable=False, default="mensual")
 
     # Desglose financiero

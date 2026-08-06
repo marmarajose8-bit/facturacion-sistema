@@ -44,7 +44,7 @@
       <table class="ledger w-full" style="min-width:680px;">
         <thead>
           <tr>
-            <th>No. Factura</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Cuota</th><th>Estado</th><th>Mora</th><th></th>
+            <th>No. Factura</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Saldo</th><th>Estado</th><th>Mora</th><th></th>
           </tr>
         </thead>
         <tbody id="tablaFacturas"></tbody>
@@ -151,39 +151,6 @@
   </div>
 </div>
 
-<!-- Modal reenganche (ampliación de préstamo) -->
-<div id="modalReenganche" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
-  <div class="panel p-4 sm:p-6 w-full max-w-md">
-    <h2 class="text-lg font-semibold mb-2">Reenganchar préstamo</h2>
-    <p id="reengancheResumen" class="text-sm mb-4" style="color:var(--text-dim)">Consultando elegibilidad...</p>
-    <form id="formReenganche" class="space-y-3">
-      <input type="hidden" id="reenganche_factura_id" />
-      <div>
-        <label class="text-xs" style="color:var(--text-dim)">Monto adicional a entregar</label>
-        <input type="number" step="0.01" id="reenganche_monto" required class="w-full mt-1" />
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="text-xs" style="color:var(--text-dim)">Nueva fecha de vencimiento</label>
-          <input type="date" id="reenganche_fecha_vencimiento" required class="w-full mt-1" />
-        </div>
-        <div>
-          <label class="text-xs" style="color:var(--text-dim)">No. de cuotas</label>
-          <input type="number" id="reenganche_numero_cuotas" value="1" min="1" class="w-full mt-1" />
-        </div>
-      </div>
-      <div>
-        <label class="text-xs" style="color:var(--text-dim)">Descripción (opcional — usa "Reenganche de crédito" si se deja vacío)</label>
-        <input id="reenganche_descripcion" class="w-full mt-1" />
-      </div>
-      <div class="flex justify-end gap-3 pt-2">
-        <button type="button" class="btn-ghost" onclick="cerrarModalReenganche()">Cancelar</button>
-        <button type="submit" id="reengancheSubmitBtn" class="btn-primary">Confirmar reenganche</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <script src="static/js/app.js"></script>
 <script>
 Auth.requireAuth();
@@ -203,41 +170,13 @@ function abrirModalPago(facturaId) {
 }
 function cerrarModalPago() { document.getElementById("modalPago").classList.add("hidden"); document.getElementById("modalPago").classList.remove("flex"); }
 
-async function abrirModalReenganche(facturaId) {
-  document.getElementById("reenganche_factura_id").value = facturaId;
-  document.getElementById("reenganche_monto").value = "";
-  document.getElementById("reenganche_descripcion").value = "";
-  document.getElementById("reenganche_fecha_vencimiento").value = "";
-  document.getElementById("reengancheResumen").textContent = "Consultando elegibilidad...";
-  document.getElementById("reengancheSubmitBtn").disabled = false;
-  document.getElementById("modalReenganche").classList.remove("hidden");
-  document.getElementById("modalReenganche").classList.add("flex");
-
-  try {
-    const info = await api(`/api/facturas/${facturaId}/reenganche/elegibilidad`);
-    const resumen = document.getElementById("reengancheResumen");
-    const f = facturasPorId[facturaId];
-    const nombreCliente = f?.cliente?.razon_social || "";
-    if (info.elegible) {
-      resumen.innerHTML = `<span style="color:var(--accent)">✓ ${nombreCliente} es elegible.</span> Ha pagado ${info.porcentaje_pagado.toFixed(1)}% del capital (mínimo requerido: ${info.porcentaje_minimo_requerido.toFixed(1)}%). Saldo a consolidar: ${fmt.money(info.saldo_a_consolidar)}.`;
-    } else {
-      resumen.innerHTML = `<span style="color:var(--danger-2)">✗ ${nombreCliente} aún no es elegible.</span> Ha pagado ${info.porcentaje_pagado.toFixed(1)}% del capital, pero se requiere al menos ${info.porcentaje_minimo_requerido.toFixed(1)}% para reenganchar.`;
-      document.getElementById("reengancheSubmitBtn").disabled = true;
-    }
-  } catch (err) {
-    document.getElementById("reengancheResumen").textContent = "No se pudo consultar la elegibilidad.";
-    toast(err.message, "error");
-  }
-}
-function cerrarModalReenganche() { document.getElementById("modalReenganche").classList.add("hidden"); document.getElementById("modalReenganche").classList.remove("flex"); }
-
 function actualizarVuelto() {
   const facturaId = parseInt(document.getElementById("pago_factura_id").value);
   const f = facturasPorId[facturaId];
   const info = document.getElementById("pago_vuelto_info");
   if (!f) { info.classList.add("hidden"); return; }
 
-  const saldo = f.saldo_pendiente;
+  const saldo = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
   const monto = parseFloat(document.getElementById("pago_monto").value);
   const metodo = document.getElementById("pago_metodo").value;
 
@@ -264,7 +203,7 @@ function agregarItem() {
   const div = document.createElement("div");
   div.className = "grid grid-cols-12 gap-2 items-center item-row";
   div.innerHTML = `
-    <input class="col-span-5 item-desc" placeholder="Descripción (opcional — si se deja vacío usa 'Préstamo personal')" />
+    <input class="col-span-5 item-desc" placeholder="Descripción" required />
     <input type="number" step="0.01" class="col-span-2 item-cant" placeholder="Cant." value="1" required />
     <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Precio unit." required />
     <input type="number" step="0.01" class="col-span-1 item-imp" placeholder="% imp." value="0" />
@@ -361,23 +300,6 @@ document.getElementById("formFactura").addEventListener("submit", async (e) => {
 
 let facturasPorId = {};
 
-document.getElementById("formReenganche").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const facturaId = parseInt(document.getElementById("reenganche_factura_id").value);
-  try {
-    await api(`/api/facturas/${facturaId}/reenganche`, { method: "POST", body: {
-      monto_adicional: parseFloat(document.getElementById("reenganche_monto").value),
-      fecha_vencimiento: document.getElementById("reenganche_fecha_vencimiento").value,
-      numero_cuotas: parseInt(document.getElementById("reenganche_numero_cuotas").value || 1),
-      descripcion: document.getElementById("reenganche_descripcion").value || null,
-    }});
-    toast("Reenganche procesado — se generó una nueva factura consolidada");
-    cerrarModalReenganche();
-    e.target.reset();
-    cargarFacturas();
-  } catch (err) { toast(err.message, "error"); }
-});
-
 document.getElementById("formPago").addEventListener("submit", async (e) => {
   e.preventDefault();
   const facturaId = parseInt(document.getElementById("pago_factura_id").value);
@@ -403,7 +325,7 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
     // Notificación de pago por WhatsApp (manual: abre el chat con el mensaje listo)
     if (facturaAntes?.cliente?.telefono) {
       const f = facturasPorId[facturaId] || facturaAntes;
-      const saldoRestante = f.saldo_pendiente;
+      const saldoRestante = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
       const mensaje = saldoRestante > 0
         ? `Hola ${facturaAntes.cliente.razon_social}, confirmamos que recibimos tu pago de ${fmt.money(monto)} para la factura ${facturaAntes.numero_factura}. Saldo restante: ${fmt.money(saldoRestante)}.`
         : `Hola ${facturaAntes.cliente.razon_social}, confirmamos que recibimos tu pago de ${fmt.money(monto)} para la factura ${facturaAntes.numero_factura}. ¡Tu factura quedó saldada por completo, gracias!`;
@@ -428,21 +350,18 @@ async function cargarFacturas() {
         <td data-label="Cliente">${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</td>
         <td data-label="Vencimiento">${fmt.date(f.fecha_vencimiento)}</td>
         <td class="font-mono-ledger" data-label="Total">${fmt.money(f.total)}</td>
-        <td class="font-mono-ledger" data-label="Abonado">${fmt.money(f.total_abonado)}</td>
-        <td class="font-mono-ledger" data-label="Saldo">${fmt.money(f.saldo_pendiente)}</td>
-        <td data-label="Cuota"><span class="text-sm">${f.texto_cuota}</span></td>
+        <td class="font-mono-ledger" data-label="Saldo">${fmt.money(f.saldo_capital + f.interes_acumulado + f.recargo_mora)}</td>
         <td data-label="Estado"><span class="badge badge-${f.estado}">${f.estado}</span></td>
         <td data-label="Mora"><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
         <td class="whitespace-nowrap">
           <div class="flex items-center gap-3">
-            ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}
-            ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:#f0a500" onclick="abrirModalReenganche(${f.id})">Reenganchar</button>` : ""}
+            ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}
             <button class="text-sm" style="color:var(--text-dim)" title="Descargar PDF" onclick="descargarPDFFactura(${f.id}, '${f.numero_factura}').catch(err => toast(err.message, 'error'))">PDF</button>
             <button class="text-sm" style="color:#25D366" title="Enviar por WhatsApp" onclick="enviarPorWhatsapp(${f.id})">WhatsApp</button>
           </div>
         </td>
       </tr>
-    `).join("") || `<tr><td colspan="10" class="text-center py-8" style="color:var(--text-dim)">Sin facturas registradas aún.</td></tr>`;
+    `).join("") || `<tr><td colspan="8" class="text-center py-8" style="color:var(--text-dim)">Sin facturas registradas aún.</td></tr>`;
   } catch (err) { toast(err.message, "error"); }
 }
 
@@ -455,8 +374,8 @@ async function enviarPorWhatsapp(facturaId) {
   }
   try {
     await descargarPDFFactura(f.id, f.numero_factura);
-    const saldo = f.saldo_pendiente;
-    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}, ${f.texto_cuota}). Vence el ${fmt.date(f.fecha_vencimiento)}.`;
+    const saldo = f.saldo_capital + f.interes_acumulado + f.recargo_mora;
+    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}). Vence el ${fmt.date(f.fecha_vencimiento)}.`;
     abrirWhatsapp(f.cliente.telefono, mensaje);
     toast("Se descargó el PDF — adjúntalo en la conversación de WhatsApp que se abrió");
   } catch (err) { toast(err.message, "error"); }

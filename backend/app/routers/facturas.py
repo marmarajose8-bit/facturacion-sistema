@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.core.security import decode_token
+from app.core.security import decode_token, requerir_admin
 from app.core.config import settings
 from app.models.cliente import Cliente
 from app.models.factura import Factura, FacturaItem, Cuota, EstadoFactura
@@ -215,7 +215,7 @@ def reenganchar_factura(factura_id: int, payload: ReenganeCreate, db: Session = 
     return nueva_factura
 
 
-@router.post("/{factura_id}/anular", response_model=FacturaOut)
+@router.post("/{factura_id}/anular", response_model=FacturaOut, dependencies=[Depends(requerir_admin)])
 def anular_factura(factura_id: int, db: Session = Depends(get_db)):
     factura = db.query(Factura).get(factura_id)
     if not factura:

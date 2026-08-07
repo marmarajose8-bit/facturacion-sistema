@@ -62,6 +62,8 @@ def listar_facturas(
     estado: Optional[str] = None,
     estado_mora: Optional[str] = None,
     q: Optional[str] = Query(None, description="Buscar por número de factura, nombre o documento del cliente"),
+    fecha_desde: Optional[date] = None,
+    fecha_hasta: Optional[date] = None,
 ):
     query = db.query(Factura).options(
         joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.cliente), joinedload(Factura.pagos)
@@ -79,6 +81,10 @@ def listar_facturas(
         query = query.filter(Factura.estado == estado)
     if estado_mora:
         query = query.filter(Factura.estado_mora == estado_mora)
+    if fecha_desde:
+        query = query.filter(Factura.fecha_emision >= fecha_desde)
+    if fecha_hasta:
+        query = query.filter(Factura.fecha_emision <= fecha_hasta)
 
     facturas = query.order_by(Factura.fecha_emision.desc()).all()
     for f in facturas:

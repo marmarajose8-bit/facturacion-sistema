@@ -63,6 +63,13 @@
         <option value="reenganchada">Reenganchada</option>
       </select>
     </div>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
+      <label class="text-xs" style="color:var(--text-dim)">Desde</label>
+      <input type="date" id="filtroFechaDesde" class="sm:w-48" onchange="cargarFacturas()" />
+      <label class="text-xs" style="color:var(--text-dim)">Hasta</label>
+      <input type="date" id="filtroFechaHasta" class="sm:w-48" onchange="cargarFacturas()" />
+      <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="document.getElementById('filtroFechaDesde').value=''; document.getElementById('filtroFechaHasta').value=''; cargarFacturas();">limpiar fechas</button>
+    </div>
 
     <div class="panel overflow-hidden mb-8">
       <div class="overflow-x-auto">
@@ -713,6 +720,10 @@ async function cargarFacturas() {
     if (texto) params.set("q", texto);
     const estado = document.getElementById("filtroEstado")?.value;
     if (estado) params.set("estado", estado);
+    const desde = document.getElementById("filtroFechaDesde")?.value;
+    if (desde) params.set("fecha_desde", desde);
+    const hasta = document.getElementById("filtroFechaHasta")?.value;
+    if (hasta) params.set("fecha_hasta", hasta);
     const qs = params.toString() ? `?${params.toString()}` : "";
     const facturas = await api(`/api/facturas${qs}`);
     facturasPorId = {};

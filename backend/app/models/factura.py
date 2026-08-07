@@ -115,33 +115,33 @@ class Factura(Base):
 
     @property
     def cuota_actual(self) -> int:
-        """En qué número de cuota va el cliente (la primera pendiente; si ya
-        pagó todas, se queda en la última)."""
+        """Cuántas cuotas van 'alcanzadas' por el dinero abonado — cuenta
+        estricta y secuencial, sin fracciones:
+        - 0 si todavía no se ha aplicado ningún abono.
+        - Suma las cuotas ya completadas al 100%, MÁS 1 si la cuota
+          siguiente ya tiene algo abonado (aunque sea parcial). Así, en el
+          instante que entra el primer peso a una cuota nueva, el número
+          salta de una vez — pero mientras una cuota recién completada no
+          tenga nada abonado todavía en la próxima, el número se queda
+          quieto en la que se acaba de terminar (no se adelanta de más).
+        - Si toda la factura ya está pagada, se queda en el total de cuotas.
+        """
         if not self.cuotas:
-            return 1
+            return 1 if self.total_abonado > 0 else 0
         if self.estado == EstadoFactura.pagada:
             return self.total_cuotas
-        pendientes = sorted(
-            (c for c in self.cuotas if c.estado != EstadoFactura.pagada),
-            key=lambda c: c.numero_cuota,
-        )
-        return pendientes[0].numero_cuota if pendientes else self.total_cuotas
+        completadas = self.cuotas_pagadas
+        siguiente = self.cuota_pendiente_actual
+        en_progreso = 1 if siguiente and Decimal(siguiente.monto_pagado) > 0 else 0
+        return completadas + en_progreso
 
     @property
     def texto_cuota(self) -> str:
-        """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'.
-        Conteo estricto y secuencial, sin fracciones ni cálculos de cuánto
-        falta:
-        - Si todavía no se ha aplicado ningún pago (ni parcial), dice
-          'Cuota 0 de N'.
-        - En cuanto se aplica el primer abono, aunque sea parcial (ej.
-          RD$1,000 de una cuota de RD$1,538.46), pasa de inmediato a
-          mostrar el número entero de la cuota en curso: 'Cuota 1 de N'.
-        - Cuando esa cuota se termina de pagar, avanza a la siguiente
-          ('Cuota 2 de N'), y así sucesivamente hasta 'N de N'.
-        """
-        if self.total_abonado <= 0:
-            return f"Cuota 0 de {self.total_cuotas}"
+        """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'. Usa el
+        mismo número que cuota_actual — es a propósito la ÚNICA definición
+        de este texto en todo el proyecto: panel web, tabla de Cartera,
+        PDF, JPG y mensaje de WhatsApp lo leen de aquí, así que siempre
+        van a coincidir exactamente entre sí."""
         return f"Cuota {self.cuota_actual} de {self.total_cuotas}"
 
     @property

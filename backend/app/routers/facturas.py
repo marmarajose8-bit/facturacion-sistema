@@ -228,14 +228,13 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
     quiere_cambiar_montos = any(
         v is not None for v in (payload.items, payload.numero_cuotas, payload.descuento, payload.tasa_interes_prestamo)
     )
-    if quiere_cambiar_montos and tiene_pagos:
-        raise HTTPException(
-            400,
-            "Esta factura ya tiene abonos registrados: no se pueden editar montos, ítems ni el número de "
-            "cuotas (se descuadraría lo ya cobrado). Solo se pueden cambiar fecha, frecuencia y notas.",
-        )
 
-    if quiere_cambiar_montos and not tiene_pagos:
+    if quiere_cambiar_montos:
+        # Antes de tocar nada, calculamos cuánto capital ya se cobró en esta
+        # factura (independiente de items/cuotas) para poder reaplicarlo al
+        # plan corregido sin perder el rastro de lo ya pagado.
+        capital_ya_pagado = sum((Decimal(p.monto_capital) for p in factura.pagos), Decimal("0"))
+
         items_payload = payload.items if payload.items is not None else [
             FacturaItemCreate(
                 descripcion=it.descripcion, cantidad=float(it.cantidad),
@@ -252,6 +251,14 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
             items_payload, descuento_val, tasa_val
         )
 
+        if tiene_pagos and total < capital_ya_pagado:
+            raise HTTPException(
+                400,
+                f"No puedes dejar el monto corregido (RD${total}) por debajo de lo que ya se cobró "
+                f"en esta factura (RD${capital_ya_pagado}). Sube el monto, o si fue un error grave, "
+                "anula la factura y créala de nuevo.",
+            )
+
         factura.items = items_db
         factura.subtotal = subtotal
         factura.impuestos = impuestos
@@ -259,12 +266,36 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
         factura.tasa_interes_prestamo = tasa_val
         factura.interes_prestamo = interes_prestamo
         factura.total = total
-        factura.saldo_capital = total
 
         n_cuotas = payload.numero_cuotas if payload.numero_cuotas is not None else factura.total_cuotas
-        factura.cuotas = _generar_plan_cuotas(
+        nuevas_cuotas = _generar_plan_cuotas(
             total, factura.fecha_vencimiento, n_cuotas, factura.frecuencia_pago
         )
+
+        if tiene_pagos and capital_ya_pagado > 0:
+            # Reaplica lo ya cobrado sobre el plan corregido, cuota por cuota
+            # en orden, igual que el reparto normal de un abono — así el
+            # historial de pagos sigue siendo válido contra los datos nuevos.
+            CENTAVO = Decimal("0.01")
+            restante = capital_ya_pagado
+            for c in sorted(nuevas_cuotas, key=lambda c: c.numero_cuota):
+                if restante <= 0:
+                    break
+                capital_cuota = Decimal(c.monto_capital).quantize(CENTAVO)
+                aplicado = min(restante, capital_cuota)
+                c.monto_pagado = aplicado
+                c.estado = EstadoFactura.pagada if aplicado >= capital_cuota else EstadoFactura.parcial
+                restante -= aplicado
+
+        factura.cuotas = nuevas_cuotas
+        factura.saldo_capital = total - capital_ya_pagado
+        if factura.saldo_capital <= 0:
+            factura.saldo_capital = Decimal("0")
+            factura.estado = EstadoFactura.pagada
+        elif tiene_pagos:
+            factura.estado = EstadoFactura.parcial
+
+        actualizar_estado_mora_factura(factura)
 
     db.commit()
     db.refresh(factura)

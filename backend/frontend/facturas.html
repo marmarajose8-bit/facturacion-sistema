@@ -164,6 +164,8 @@
   <div class="panel p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
     <h2 id="modalFacturaTitulo" class="text-lg font-semibold mb-4">Nueva factura</h2>
     <input type="hidden" id="factura_edit_id" value="" />
+    <input type="hidden" id="factura_tiene_pagos" value="0" />
+    <input type="hidden" id="factura_capital_pagado" value="0" />
 
     <div id="llenadoRapidoBox" class="p-3 mb-4 rounded-lg" style="background:var(--panel-2); border:1px solid var(--border);">
       <label class="text-xs" style="color:var(--text-dim)">Llenado rápido — escribe "Nombre del cliente, monto, frecuencia" y presiona Llenar</label>
@@ -175,8 +177,9 @@
     </div>
 
     <p id="facturaEditAviso" class="text-sm mb-4 hidden p-3 rounded-lg" style="background:var(--panel-2); border:1px solid var(--warn); color:var(--warn);">
-      Esta factura ya tiene abonos registrados: solo puedes cambiar la fecha de vencimiento, la frecuencia y las notas.
-      Los montos, ítems y el número de cuotas quedan bloqueados para no descuadrar lo ya cobrado.
+      Esta factura ya tiene abonos registrados. Puedes corregir el monto, el % de interés, los ítems o el número
+      de cuotas si hubo un error al capturarla — el sistema reaplica automáticamente lo ya cobrado sobre el plan
+      corregido, sin perder el rastro del pago. Solo no te va a dejar bajar el monto por debajo de lo que ya se cobró.
     </p>
 
     <form id="formFactura" class="space-y-3">
@@ -309,6 +312,8 @@ const clienteFiltro = urlParams.get("cliente_id");
 
 function abrirModalFactura() {
   document.getElementById("factura_edit_id").value = "";
+  document.getElementById("factura_tiene_pagos").value = "0";
+  document.getElementById("factura_capital_pagado").value = "0";
   document.getElementById("modalFacturaTitulo").textContent = "Nueva factura";
   document.getElementById("formFacturaSubmitBtn").textContent = "Emitir factura";
   document.getElementById("llenadoRapidoBox").classList.remove("hidden");
@@ -359,13 +364,12 @@ async function abrirModalFacturaEdicion(facturaId) {
     ultima.querySelector(".item-imp").value = it.porcentaje_impuesto;
   });
 
-  const bloquear = !f.editable_completo;
-  document.getElementById("facturaEditAviso").classList.toggle("hidden", !bloquear);
-  document.getElementById("numero_cuotas").disabled = bloquear;
-  document.getElementById("tasa_interes_prestamo").disabled = bloquear;
-  document.getElementById("btnAgregarItem").classList.toggle("hidden", bloquear);
-  document.querySelectorAll(".item-row .item-desc, .item-row .item-precio, .item-row .item-cant, .item-row .item-imp, .item-row button")
-    .forEach(el => el.disabled = bloquear);
+  const tienePagos = !f.editable_completo;
+  document.getElementById("facturaEditAviso").classList.toggle("hidden", !tienePagos);
+  document.getElementById("factura_tiene_pagos").value = tienePagos ? "1" : "0";
+  document.getElementById("factura_capital_pagado").value = f.total_abonado;
+  // Nada queda deshabilitado — solo se avisa. La validación de no bajar
+  // el monto por debajo de lo ya cobrado la hace el backend.
 
   document.getElementById("modalFactura").classList.remove("hidden");
   document.getElementById("modalFactura").classList.add("flex");
@@ -617,18 +621,24 @@ document.getElementById("formFactura").addEventListener("submit", async (e) => {
   }));
   try {
     if (editId) {
-      const bloqueado = document.getElementById("numero_cuotas").disabled;
+      const tienePagos = document.getElementById("factura_tiene_pagos").value === "1";
+      const capitalPagado = parseFloat(document.getElementById("factura_capital_pagado").value || 0);
+      if (tienePagos) {
+        const confirmar = confirm(
+          `Esta factura ya tiene ${fmt.money(capitalPagado)} cobrados. Si guardas, el sistema reaplica ese ` +
+          `abono automáticamente sobre el plan corregido. ¿Confirmas que quieres guardar los cambios?`
+        );
+        if (!confirmar) return;
+      }
       const body = {
         fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
         frecuencia_pago: document.getElementById("frecuencia_pago").value,
         notas: document.getElementById("factura_notas").value || null,
+        numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
+        tasa_interes_prestamo: document.getElementById("tasa_interes_prestamo").value
+          ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null,
+        items,
       };
-      if (!bloqueado) {
-        body.numero_cuotas = parseInt(document.getElementById("numero_cuotas").value || 1);
-        body.tasa_interes_prestamo = document.getElementById("tasa_interes_prestamo").value
-          ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null;
-        body.items = items;
-      }
       await api(`/api/facturas/${editId}`, { method: "PUT", body });
       toast("Factura actualizada correctamente");
     } else {

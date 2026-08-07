@@ -133,7 +133,9 @@ class Factura(Base):
         cuota que toca ahora ya tiene un abono parcial (pero no está
         completa), se le agrega cuánto falta exacto — así cada pago se ve
         reflejado aunque todavía no alcance para completar esa cuota."""
-        base = f"Cuota {self.cuota_actual} de {self.total_cuotas}"
+        # Muestra cuantas cuotas ha COMPLETADO (0 si aun no ha pagado nada),
+        # no en cual va — asi antes del primer pago dice "Cuota 0 de 13".
+        base = f"Cuota {self.cuotas_pagadas} de {self.total_cuotas}"
         cuota = self.cuota_pendiente_actual
         if cuota and self.estado != EstadoFactura.pagada:
             capital = Decimal(cuota.monto_capital).quantize(Decimal("0.01"))

@@ -37,6 +37,22 @@ class FacturaCreate(BaseModel):
     items: List[FacturaItemCreate]
 
 
+class FacturaUpdate(BaseModel):
+    """Edición de una factura existente.
+
+    fecha_vencimiento, frecuencia_pago y notas se pueden cambiar siempre.
+    items, descuento, tasa_interes_prestamo y numero_cuotas SOLO se aplican
+    si la factura todavía no tiene ningún pago registrado (si no, el router
+    los ignora en silencio para no descuadrar lo ya cobrado)."""
+    fecha_vencimiento: Optional[date] = None
+    frecuencia_pago: Optional[str] = None
+    notas: Optional[str] = None
+    numero_cuotas: Optional[int] = None
+    descuento: Optional[float] = None
+    tasa_interes_prestamo: Optional[float] = None
+    items: Optional[List[FacturaItemCreate]] = None
+
+
 class CuotaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -119,6 +135,11 @@ class FacturaOut(BaseModel):
     cuotas_pagadas: int           # cuántas cuotas ya saldó por completo
     cuota_actual: int             # en qué número de cuota va
     texto_cuota: str              # ej. "Cuota 2 de 6", listo para mostrar
+
+    # True si la factura todavía no tiene ningún pago: el frontend usa esto
+    # para decidir si deja editar montos/ítems/cuotas o solo lo básico
+    # (fecha de vencimiento, frecuencia, notas).
+    editable_completo: bool
 
     items: List[FacturaItemOut] = []
     cuotas: List[CuotaOut] = []

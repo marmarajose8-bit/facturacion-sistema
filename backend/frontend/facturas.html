@@ -142,9 +142,10 @@
 <!-- Modal nueva factura -->
 <div id="modalFactura" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
   <div class="panel p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-    <h2 class="text-lg font-semibold mb-4">Nueva factura</h2>
+    <h2 id="modalFacturaTitulo" class="text-lg font-semibold mb-4">Nueva factura</h2>
+    <input type="hidden" id="factura_edit_id" value="" />
 
-    <div class="p-3 mb-4 rounded-lg" style="background:var(--panel-2); border:1px solid var(--border);">
+    <div id="llenadoRapidoBox" class="p-3 mb-4 rounded-lg" style="background:var(--panel-2); border:1px solid var(--border);">
       <label class="text-xs" style="color:var(--text-dim)">Llenado rápido — escribe "Nombre del cliente, monto, frecuencia" y presiona Llenar</label>
       <div class="flex flex-col sm:flex-row gap-2 mt-1">
         <input id="llenadoRapidoTexto" class="w-full" placeholder="Ej: Juan Pérez, 5000, quincenal" />
@@ -152,6 +153,11 @@
       </div>
       <p class="text-xs mt-1" style="color:var(--text-dim)">Frecuencia: semanal, quincenal o mensual (si no la escribes, queda en mensual).</p>
     </div>
+
+    <p id="facturaEditAviso" class="text-sm mb-4 hidden p-3 rounded-lg" style="background:var(--panel-2); border:1px solid var(--warn); color:var(--warn);">
+      Esta factura ya tiene abonos registrados: solo puedes cambiar la fecha de vencimiento, la frecuencia y las notas.
+      Los montos, ítems y el número de cuotas quedan bloqueados para no descuadrar lo ya cobrado.
+    </p>
 
     <form id="formFactura" class="space-y-3">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -185,13 +191,17 @@
           <p class="text-xs mt-1" style="color:var(--text-dim)">Libre — pon lo que cobres (usual en RD: 5% a 30% según plazo). Se aplica una sola vez sobre el capital.</p>
         </div>
       </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Notas (opcional)</label>
+        <input id="factura_notas" class="w-full mt-1" />
+      </div>
 
       <div class="pt-2">
         <div class="flex items-center justify-between mb-2">
           <label class="text-xs" style="color:var(--text-dim)">Monto del préstamo</label>
           <div class="flex items-center gap-3">
             <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="toggleAvanzado()">opciones avanzadas</button>
-            <button type="button" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar otro concepto</button>
+            <button type="button" id="btnAgregarItem" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar otro concepto</button>
           </div>
         </div>
         <div id="itemsContainer" class="space-y-2"></div>
@@ -199,7 +209,7 @@
 
       <div class="flex justify-end gap-3 pt-4">
         <button type="button" class="btn-ghost" onclick="cerrarModalFactura()">Cancelar</button>
-        <button type="submit" class="btn-primary">Emitir factura</button>
+        <button type="submit" id="formFacturaSubmitBtn" class="btn-primary">Emitir factura</button>
       </div>
     </form>
   </div>
@@ -278,6 +288,18 @@ const urlParams = new URLSearchParams(window.location.search);
 const clienteFiltro = urlParams.get("cliente_id");
 
 function abrirModalFactura() {
+  document.getElementById("factura_edit_id").value = "";
+  document.getElementById("modalFacturaTitulo").textContent = "Nueva factura";
+  document.getElementById("formFacturaSubmitBtn").textContent = "Emitir factura";
+  document.getElementById("llenadoRapidoBox").classList.remove("hidden");
+  document.getElementById("facturaEditAviso").classList.add("hidden");
+  document.getElementById("cliente_id").disabled = false;
+  document.getElementById("numero_cuotas").disabled = false;
+  document.getElementById("tasa_interes_prestamo").disabled = false;
+  document.getElementById("btnAgregarItem").classList.remove("hidden");
+  document.querySelectorAll(".item-row .item-desc, .item-row .item-precio, .item-row .item-cant, .item-row .item-imp")
+    .forEach(el => el.disabled = false);
+  document.getElementById("formFactura").reset();
   document.getElementById("modalFactura").classList.remove("hidden");
   document.getElementById("modalFactura").classList.add("flex");
   cargarClientesSelect();
@@ -287,6 +309,48 @@ function abrirModalFactura() {
   itemCount = 0;
   agregarItem();
 }
+
+async function abrirModalFacturaEdicion(facturaId) {
+  await cargarClientesSelect();
+  const f = facturasPorId[facturaId] || await api(`/api/facturas/${facturaId}`);
+
+  document.getElementById("factura_edit_id").value = facturaId;
+  document.getElementById("modalFacturaTitulo").textContent = `Editar factura ${f.numero_factura}`;
+  document.getElementById("formFacturaSubmitBtn").textContent = "Guardar cambios";
+  document.getElementById("llenadoRapidoBox").classList.add("hidden");
+
+  document.getElementById("cliente_id").value = f.cliente_id;
+  document.getElementById("cliente_id").disabled = true; // no se reasigna cliente al editar
+  document.getElementById("fecha_vencimiento").value = f.fecha_vencimiento;
+  document.getElementById("frecuencia_pago").value = f.frecuencia_pago;
+  document.getElementById("numero_cuotas").value = f.total_cuotas;
+  document.getElementById("tasa_interes_prestamo").value = f.tasa_interes_prestamo || "";
+  document.getElementById("factura_notas").value = f.notas || "";
+
+  document.getElementById("itemsContainer").innerHTML = "";
+  itemCount = 0;
+  f.items.forEach(it => {
+    agregarItem();
+    const fila = document.querySelectorAll("#itemsContainer .item-row");
+    const ultima = fila[fila.length - 1];
+    ultima.querySelector(".item-desc").value = it.descripcion || "";
+    ultima.querySelector(".item-precio").value = it.precio_unitario;
+    ultima.querySelector(".item-cant").value = it.cantidad;
+    ultima.querySelector(".item-imp").value = it.porcentaje_impuesto;
+  });
+
+  const bloquear = !f.editable_completo;
+  document.getElementById("facturaEditAviso").classList.toggle("hidden", !bloquear);
+  document.getElementById("numero_cuotas").disabled = bloquear;
+  document.getElementById("tasa_interes_prestamo").disabled = bloquear;
+  document.getElementById("btnAgregarItem").classList.toggle("hidden", bloquear);
+  document.querySelectorAll(".item-row .item-desc, .item-row .item-precio, .item-row .item-cant, .item-row .item-imp, .item-row button")
+    .forEach(el => el.disabled = bloquear);
+
+  document.getElementById("modalFactura").classList.remove("hidden");
+  document.getElementById("modalFactura").classList.add("flex");
+}
+
 function cerrarModalFactura() { document.getElementById("modalFactura").classList.add("hidden"); document.getElementById("modalFactura").classList.remove("flex"); }
 function abrirModalPago(facturaId) {
   document.getElementById("pago_factura_id").value = facturaId;
@@ -522,8 +586,9 @@ function llenarRapido() {
 
 document.getElementById("formFactura").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const editId = document.getElementById("factura_edit_id").value;
   const filas = document.querySelectorAll("#itemsContainer .item-row");
-  if (filas.length === 0) { toast("Agrega al menos un ítem", "error"); return; }
+  if (!editId && filas.length === 0) { toast("Agrega al menos un ítem", "error"); return; }
   const items = Array.from(filas).map(row => ({
     descripcion: row.querySelector(".item-desc").value,
     cantidad: parseFloat(row.querySelector(".item-cant").value),
@@ -531,16 +596,34 @@ document.getElementById("formFactura").addEventListener("submit", async (e) => {
     porcentaje_impuesto: parseFloat(row.querySelector(".item-imp").value || 0),
   }));
   try {
-    await api("/api/facturas", { method: "POST", body: {
-      cliente_id: parseInt(document.getElementById("cliente_id").value),
-      fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
-      frecuencia_pago: document.getElementById("frecuencia_pago").value,
-      numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
-      tasa_interes_prestamo: document.getElementById("tasa_interes_prestamo").value
-        ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null,
-      items,
-    }});
-    toast("Factura emitida correctamente");
+    if (editId) {
+      const bloqueado = document.getElementById("numero_cuotas").disabled;
+      const body = {
+        fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
+        frecuencia_pago: document.getElementById("frecuencia_pago").value,
+        notas: document.getElementById("factura_notas").value || null,
+      };
+      if (!bloqueado) {
+        body.numero_cuotas = parseInt(document.getElementById("numero_cuotas").value || 1);
+        body.tasa_interes_prestamo = document.getElementById("tasa_interes_prestamo").value
+          ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null;
+        body.items = items;
+      }
+      await api(`/api/facturas/${editId}`, { method: "PUT", body });
+      toast("Factura actualizada correctamente");
+    } else {
+      await api("/api/facturas", { method: "POST", body: {
+        cliente_id: parseInt(document.getElementById("cliente_id").value),
+        fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
+        frecuencia_pago: document.getElementById("frecuencia_pago").value,
+        numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
+        tasa_interes_prestamo: document.getElementById("tasa_interes_prestamo").value
+          ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null,
+        notas: document.getElementById("factura_notas").value || null,
+        items,
+      }});
+      toast("Factura emitida correctamente");
+    }
     cerrarModalFactura();
     e.target.reset();
     document.getElementById("itemsContainer").innerHTML = "";
@@ -630,6 +713,7 @@ async function cargarFacturas() {
           <div class="flex items-center gap-3">
             ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}
             ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:#f0a500" onclick="abrirModalReenganche(${f.id})">Reenganchar</button>` : ""}
+            ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--text-dim)" onclick="abrirModalFacturaEdicion(${f.id})">Editar</button>` : ""}
             <button class="text-sm" style="color:var(--text-dim)" title="Descargar PDF" onclick="descargarPDFFactura(${f.id}, '${f.numero_factura}').catch(err => toast(err.message, 'error'))">PDF</button>
             <button class="text-sm" style="color:var(--text-dim)" title="Descargar como imagen (JPG)" onclick="descargarJPGFactura(${f.id}).catch(err => toast(err.message, 'error'))">JPG</button>
             <button class="text-sm" style="color:#25D366" title="Enviar por WhatsApp" onclick="enviarPorWhatsapp(${f.id})">WhatsApp</button>

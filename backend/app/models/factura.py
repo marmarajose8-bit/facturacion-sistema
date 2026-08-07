@@ -132,6 +132,13 @@ class Factura(Base):
         """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'."""
         return f"Cuota {self.cuota_actual} de {self.total_cuotas}"
 
+    @property
+    def editable_completo(self) -> bool:
+        """True si todavía no se ha registrado ningún pago: en ese caso es
+        seguro dejar editar montos, ítems, cuotas y frecuencia sin
+        descuadrar nada ya cobrado."""
+        return len(self.pagos) == 0
+
 
 class FacturaItem(Base):
     __tablename__ = "factura_items"

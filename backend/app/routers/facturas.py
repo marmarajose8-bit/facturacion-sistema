@@ -12,7 +12,9 @@ from app.core.security import decode_token, requerir_admin
 from app.core.config import settings
 from app.models.cliente import Cliente
 from app.models.factura import Factura, FacturaItem, Cuota, EstadoFactura
-from app.schemas.factura import FacturaCreate, FacturaOut, ReenganeCreate, ReenganeElegibilidadOut
+from app.schemas.factura import (
+    FacturaCreate, FacturaUpdate, FacturaOut, FacturaItemCreate, ReenganeCreate, ReenganeElegibilidadOut,
+)
 from app.services.numeracion import generar_numero_factura
 from app.services.mora import actualizar_estado_mora_factura
 from app.services.pdf_factura import generar_pdf_factura
@@ -144,6 +146,112 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
     )
 
     db.add(factura)
+    db.commit()
+    db.refresh(factura)
+    return factura
+
+
+def _recalcular_totales(
+    items_payload: List, descuento_val: float, tasa_interes_val: Optional[float]
+):
+    """Misma fórmula que crear_factura: recibe los ítems del payload y
+    devuelve (subtotal, impuestos, interes_prestamo, total, items_db)."""
+    subtotal = Decimal("0")
+    impuestos = Decimal("0")
+    items_db: List[FacturaItem] = []
+
+    for item in items_payload:
+        cant = Decimal(str(item.cantidad))
+        precio = Decimal(str(item.precio_unitario))
+        pct_imp = Decimal(str(item.porcentaje_impuesto))
+
+        subtotal_linea = (cant * precio).quantize(Decimal("0.01"))
+        impuesto_linea = (subtotal_linea * pct_imp / 100).quantize(Decimal("0.01"))
+
+        subtotal += subtotal_linea
+        impuestos += impuesto_linea
+
+        items_db.append(FacturaItem(
+            descripcion=item.descripcion or settings.PRESTAMO_DESCRIPCION_DEFECTO,
+            cantidad=cant,
+            precio_unitario=precio,
+            porcentaje_impuesto=pct_imp,
+            subtotal_linea=subtotal_linea,
+        ))
+
+    descuento = Decimal(str(descuento_val))
+    tasa_interes = Decimal(str(tasa_interes_val)) if tasa_interes_val else Decimal("0")
+    interes_prestamo = (subtotal * tasa_interes / 100).quantize(Decimal("0.01"))
+    total = subtotal + impuestos + interes_prestamo - descuento
+
+    return subtotal, impuestos, interes_prestamo, total, items_db
+
+
+@router.put("/{factura_id}", response_model=FacturaOut)
+def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depends(get_db)):
+    factura = db.query(Factura).options(
+        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.pagos)
+    ).get(factura_id)
+    if not factura:
+        raise HTTPException(404, "Factura no encontrada")
+    if factura.estado in (EstadoFactura.pagada, EstadoFactura.anulada):
+        raise HTTPException(400, "No se puede editar una factura pagada o anulada")
+
+    # --- Campos siempre editables, tenga o no pagos ---
+    if payload.frecuencia_pago is not None:
+        if payload.frecuencia_pago not in ("semanal", "quincenal", "mensual"):
+            raise HTTPException(400, "Frecuencia inválida: usa semanal, quincenal o mensual")
+        factura.frecuencia_pago = payload.frecuencia_pago
+    if payload.notas is not None:
+        factura.notas = payload.notas
+    if payload.fecha_vencimiento is not None:
+        factura.fecha_vencimiento = payload.fecha_vencimiento
+        # Si no tiene pagos, la fecha de la primera cuota también se mueve
+        # (si sí tiene pagos, solo se ajusta la referencia de la factura,
+        # las cuotas ya generadas no se tocan para no descuadrar lo cobrado).
+
+    tiene_pagos = len(factura.pagos) > 0
+    quiere_cambiar_montos = any(
+        v is not None for v in (payload.items, payload.numero_cuotas, payload.descuento, payload.tasa_interes_prestamo)
+    )
+    if quiere_cambiar_montos and tiene_pagos:
+        raise HTTPException(
+            400,
+            "Esta factura ya tiene abonos registrados: no se pueden editar montos, ítems ni el número de "
+            "cuotas (se descuadraría lo ya cobrado). Solo se pueden cambiar fecha, frecuencia y notas.",
+        )
+
+    if quiere_cambiar_montos and not tiene_pagos:
+        items_payload = payload.items if payload.items is not None else [
+            FacturaItemCreate(
+                descripcion=it.descripcion, cantidad=float(it.cantidad),
+                precio_unitario=float(it.precio_unitario), porcentaje_impuesto=float(it.porcentaje_impuesto),
+            ) for it in factura.items
+        ]
+        descuento_val = payload.descuento if payload.descuento is not None else float(factura.descuento)
+        tasa_val = (
+            payload.tasa_interes_prestamo if payload.tasa_interes_prestamo is not None
+            else (float(factura.tasa_interes_prestamo) if factura.tasa_interes_prestamo else None)
+        )
+
+        subtotal, impuestos, interes_prestamo, total, items_db = _recalcular_totales(
+            items_payload, descuento_val, tasa_val
+        )
+
+        factura.items = items_db
+        factura.subtotal = subtotal
+        factura.impuestos = impuestos
+        factura.descuento = Decimal(str(descuento_val))
+        factura.tasa_interes_prestamo = tasa_val
+        factura.interes_prestamo = interes_prestamo
+        factura.total = total
+        factura.saldo_capital = total
+
+        n_cuotas = payload.numero_cuotas if payload.numero_cuotas is not None else factura.total_cuotas
+        factura.cuotas = _generar_plan_cuotas(
+            total, factura.fecha_vencimiento, n_cuotas, factura.frecuencia_pago
+        )
+
     db.commit()
     db.refresh(factura)
     return factura

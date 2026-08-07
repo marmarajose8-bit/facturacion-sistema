@@ -205,7 +205,7 @@
 
       <div class="pt-2">
         <div class="flex items-center justify-between mb-2">
-          <label class="text-xs" style="color:var(--text-dim)">Descripción</label>
+          <label class="text-xs" style="color:var(--text-dim)">Concepto</label>
           <div class="flex items-center gap-3">
             <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="toggleAvanzado()">opciones avanzadas</button>
             <button type="button" id="btnAgregarItem" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar otro concepto</button>
@@ -754,6 +754,17 @@ async function descargarJPGFactura(facturaId) {
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Vencimiento</span><strong>${fmt.date(f.fecha_vencimiento_vigente)}</strong></div>
       <div style="display:flex; justify-content:space-between;"><span style="color:#6b7280;">Cuota</span><strong>${f.texto_cuota}</strong></div>
     </div>
+    ${f.items && f.items.length ? `
+    <div style="margin-bottom:12px; font-size:13px;">
+      <div style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Concepto</div>
+      ${f.items.map(it => `
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span>${it.descripcion || "—"}${Number(it.cantidad) > 1 ? ` x${Number(it.cantidad)}` : ""}</span>
+          <strong>${fmt.money(it.subtotal_linea)}</strong>
+        </div>
+      `).join("")}
+    </div>
+    ` : ""}
     <div style="font-size:14px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Total</span><strong>${fmt.money(f.total)}</strong></div>
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Abonado</span><strong>${fmt.money(f.total_abonado)}</strong></div>

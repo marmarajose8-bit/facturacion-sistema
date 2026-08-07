@@ -177,6 +177,13 @@
           <input type="number" id="numero_cuotas" value="1" min="1" class="w-full mt-1" />
         </div>
       </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">% de interés del préstamo (opcional)</label>
+          <input type="number" id="tasa_interes_prestamo" step="0.01" min="0" placeholder="ej: 15" class="w-full mt-1" />
+          <p class="text-xs mt-1" style="color:var(--text-dim)">Libre — pon lo que cobres (usual en RD: 5% a 30% según plazo). Se aplica una sola vez sobre el capital.</p>
+        </div>
+      </div>
 
       <div class="pt-2">
         <div class="flex items-center justify-between mb-2">
@@ -528,6 +535,8 @@ document.getElementById("formFactura").addEventListener("submit", async (e) => {
       fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
       frecuencia_pago: document.getElementById("frecuencia_pago").value,
       numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
+      tasa_interes_prestamo: document.getElementById("tasa_interes_prestamo").value
+        ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null,
       items,
     }});
     toast("Factura emitida correctamente");

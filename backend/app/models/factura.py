@@ -48,6 +48,10 @@ class Factura(Base):
     subtotal = Column(Numeric(14, 2), nullable=False, default=0)
     impuestos = Column(Numeric(14, 2), nullable=False, default=0)
     descuento = Column(Numeric(14, 2), nullable=False, default=0)
+    # Interés del préstamo (distinto de interes_acumulado, que es mora por
+    # atraso). Se cobra una sola vez sobre el capital, no es compuesto.
+    tasa_interes_prestamo = Column(Numeric(5, 2), nullable=True)
+    interes_prestamo = Column(Numeric(14, 2), nullable=False, default=0)
     total = Column(Numeric(14, 2), nullable=False, default=0)
 
     # Saldo vivo (capital + intereses/recargos - abonos)

@@ -112,7 +112,11 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         ))
 
     descuento = Decimal(str(payload.descuento))
-    total = subtotal + impuestos - descuento
+
+    tasa_interes = Decimal(str(payload.tasa_interes_prestamo)) if payload.tasa_interes_prestamo else Decimal("0")
+    interes_prestamo = (subtotal * tasa_interes / 100).quantize(Decimal("0.01"))
+
+    total = subtotal + impuestos + interes_prestamo - descuento
 
     factura = Factura(
         numero_factura=generar_numero_factura(db),
@@ -123,6 +127,8 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         subtotal=subtotal,
         impuestos=impuestos,
         descuento=descuento,
+        tasa_interes_prestamo=payload.tasa_interes_prestamo,
+        interes_prestamo=interes_prestamo,
         total=total,
         saldo_capital=total,
         estado=EstadoFactura.pendiente,

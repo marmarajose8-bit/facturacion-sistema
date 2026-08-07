@@ -115,25 +115,17 @@ class Factura(Base):
 
     @property
     def cuota_actual(self) -> int:
-        """Cuántas cuotas van 'alcanzadas' por el dinero abonado — cuenta
-        estricta y secuencial, sin fracciones:
-        - 0 si todavía no se ha aplicado ningún abono.
-        - Suma las cuotas ya completadas al 100%, MÁS 1 si la cuota
-          siguiente ya tiene algo abonado (aunque sea parcial). Así, en el
-          instante que entra el primer peso a una cuota nueva, el número
-          salta de una vez — pero mientras una cuota recién completada no
-          tenga nada abonado todavía en la próxima, el número se queda
-          quieto en la que se acaba de terminar (no se adelanta de más).
-        - Si toda la factura ya está pagada, se queda en el total de cuotas.
-        """
-        if not self.cuotas:
-            return 1 if self.total_abonado > 0 else 0
+        """Cuenta simple y directa: el número de cuota avanza exactamente
+        UNO por cada pago que se registre, sin importar el monto que cubra.
+        - Sin ningún pago todavía: 0.
+        - Primer pago registrado: 1. Segundo pago: 2. Tercer pago: 3. Y así,
+          uno por uno, hasta el total de cuotas.
+        - Si la factura ya quedó completamente pagada, se topa en el total
+          de cuotas (nunca pasa de ahí, aunque haya habido más pagos que
+          cuotas por algún abono de más)."""
         if self.estado == EstadoFactura.pagada:
             return self.total_cuotas
-        completadas = self.cuotas_pagadas
-        siguiente = self.cuota_pendiente_actual
-        en_progreso = 1 if siguiente and Decimal(siguiente.monto_pagado) > 0 else 0
-        return completadas + en_progreso
+        return min(len(self.pagos), self.total_cuotas)
 
     @property
     def texto_cuota(self) -> str:

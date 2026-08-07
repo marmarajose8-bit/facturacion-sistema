@@ -129,21 +129,20 @@ class Factura(Base):
 
     @property
     def texto_cuota(self) -> str:
-        """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'. Si la
-        cuota que toca ahora ya tiene un abono parcial (pero no está
-        completa), se le agrega cuánto falta exacto — así cada pago se ve
-        reflejado aunque todavía no alcance para completar esa cuota."""
-        # Muestra cuantas cuotas ha COMPLETADO (0 si aun no ha pagado nada),
-        # no en cual va — asi antes del primer pago dice "Cuota 0 de 13".
-        base = f"Cuota {self.cuotas_pagadas} de {self.total_cuotas}"
-        cuota = self.cuota_pendiente_actual
-        if cuota and self.estado != EstadoFactura.pagada:
-            capital = Decimal(cuota.monto_capital).quantize(Decimal("0.01"))
-            pagado = Decimal(cuota.monto_pagado).quantize(Decimal("0.01"))
-            falta = capital - pagado
-            if 0 < pagado and falta > 0:
-                return f"{base} (faltan RD${falta:,.2f})"
-        return base
+        """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'.
+        Conteo estricto y secuencial, sin fracciones ni cálculos de cuánto
+        falta:
+        - Si todavía no se ha aplicado ningún pago (ni parcial), dice
+          'Cuota 0 de N'.
+        - En cuanto se aplica el primer abono, aunque sea parcial (ej.
+          RD$1,000 de una cuota de RD$1,538.46), pasa de inmediato a
+          mostrar el número entero de la cuota en curso: 'Cuota 1 de N'.
+        - Cuando esa cuota se termina de pagar, avanza a la siguiente
+          ('Cuota 2 de N'), y así sucesivamente hasta 'N de N'.
+        """
+        if self.total_abonado <= 0:
+            return f"Cuota 0 de {self.total_cuotas}"
+        return f"Cuota {self.cuota_actual} de {self.total_cuotas}"
 
     @property
     def cuota_pendiente_actual(self):

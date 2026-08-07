@@ -16,6 +16,56 @@ from app.models.usuario import Usuario
 
 router = APIRouter(prefix="/api/pagos", tags=["Pagos y Cobros"], dependencies=[Depends(decode_token)])
 
+# Centavo de tolerancia: evita que un residuo de redondeo binario dado por
+# Decimal(float) dispare comparaciones falsas al aplicar abonos.
+CENTAVO = Decimal("0.01")
+
+
+def _marcar_estado_cuota(c: Cuota) -> None:
+    """Recalcula el estado de una cuota según lo abonado hasta ahora:
+    pendiente (nada abonado), parcial (algo pero no todo) o pagada
+    (cubre el capital completo, con tolerancia de redondeo)."""
+    pagado = Decimal(c.monto_pagado).quantize(CENTAVO)
+    capital = Decimal(c.monto_capital).quantize(CENTAVO)
+    if pagado <= 0:
+        c.estado = EstadoFactura.pendiente
+    elif pagado >= capital:
+        c.estado = EstadoFactura.pagada
+    else:
+        c.estado = EstadoFactura.parcial
+
+
+def _aplicar_capital_secuencial(factura: Factura, monto_capital: Decimal, cuota_inicio: Optional[Cuota] = None) -> None:
+    """Reparte `monto_capital` estrictamente en orden de calendario (número
+    de cuota ascendente), llenando primero la cuota más antigua que aún
+    tenga saldo antes de tocar la siguiente. Nunca deja un residuo "flotando"
+    fuera de las cuotas: si el pago alcanza para más de una, se derrama en
+    cascada hacia adelante.
+
+    Si se indica `cuota_inicio`, el reparto arranca en esa cuota puntual (por
+    si el usuario/UI señaló explícitamente cuál cobrar) pero SIGUE derramando
+    el sobrante hacia las cuotas siguientes en vez de perderlo — así el
+    resultado es idéntico sin importar si el pago llegó con o sin cuota_id.
+    """
+    numero_desde = cuota_inicio.numero_cuota if cuota_inicio else 0
+    cuotas_pendientes = sorted(
+        (c for c in factura.cuotas if c.estado != EstadoFactura.pagada and c.numero_cuota >= numero_desde),
+        key=lambda c: c.numero_cuota,
+    )
+    restante = monto_capital
+    for c in cuotas_pendientes:
+        if restante <= 0:
+            break
+        falta_en_cuota = (
+            Decimal(c.monto_capital).quantize(CENTAVO) - Decimal(c.monto_pagado).quantize(CENTAVO)
+        )
+        if falta_en_cuota <= 0:
+            continue
+        aplicado_a_esta = min(restante, falta_en_cuota)
+        c.monto_pagado = (Decimal(c.monto_pagado) + aplicado_a_esta).quantize(CENTAVO)
+        _marcar_estado_cuota(c)
+        restante -= aplicado_a_esta
+
 
 @router.get("", response_model=List[PagoOut])
 def listar_pagos(db: Session = Depends(get_db), factura_id: Optional[int] = None):
@@ -43,6 +93,14 @@ def registrar_pago(
     monto = Decimal(str(payload.monto))
     if monto <= 0:
         raise HTTPException(400, "El monto del pago debe ser mayor a cero")
+
+    cuota_seleccionada = None
+    if payload.cuota_id:
+        cuota_seleccionada = db.query(Cuota).get(payload.cuota_id)
+        if not cuota_seleccionada:
+            raise HTTPException(404, "Cuota no encontrada")
+        if cuota_seleccionada.factura_id != factura.id:
+            raise HTTPException(400, "Esa cuota no pertenece a esta factura")
 
     saldo_total_exigible = (
         Decimal(factura.saldo_capital) + Decimal(factura.interes_acumulado) + Decimal(factura.recargo_mora)
@@ -75,52 +133,10 @@ def registrar_pago(
     factura.interes_acumulado -= aplicado_interes
     factura.saldo_capital -= aplicado_capital
 
-    # Centavo de tolerancia: evita que un residuo de redondeo binario dado
-    # por Decimal(float) dispare comparaciones falsas al aplicar abonos.
-    CENTAVO = Decimal("0.01")
-
-    def _marcar_estado_cuota(c: Cuota) -> None:
-        """Recalcula el estado de una cuota según lo abonado hasta ahora:
-        pendiente (nada abonado), parcial (algo pero no todo) o pagada
-        (cubre el capital completo, con tolerancia de redondeo)."""
-        pagado = Decimal(c.monto_pagado).quantize(CENTAVO)
-        capital = Decimal(c.monto_capital).quantize(CENTAVO)
-        if pagado <= 0:
-            c.estado = EstadoFactura.pendiente
-        elif pagado >= capital:
-            c.estado = EstadoFactura.pagada
-        else:
-            c.estado = EstadoFactura.parcial
-
-    cuota = None
-    if payload.cuota_id:
-        # El usuario/UI indicó explícitamente a qué cuota aplicar el abono.
-        cuota = db.query(Cuota).get(payload.cuota_id)
-        if cuota:
-            cuota.monto_pagado = (Decimal(cuota.monto_pagado) + aplicado_capital).quantize(CENTAVO)
-            _marcar_estado_cuota(cuota)
-    else:
-        # Flujo normal (no se indicó cuota): reparte el capital aplicado
-        # entre las cuotas pendientes en orden, para que "Cuota X de N"
-        # avance automáticamente aunque no se seleccione una cuota puntual.
-        # Incluye las que ya tienen abono parcial, no solo las "pendiente".
-        restante_capital = aplicado_capital
-        cuotas_pendientes = sorted(
-            (c for c in factura.cuotas if c.estado != EstadoFactura.pagada),
-            key=lambda c: c.numero_cuota,
-        )
-        for c in cuotas_pendientes:
-            if restante_capital <= 0:
-                break
-            falta_en_cuota = (
-                Decimal(c.monto_capital).quantize(CENTAVO) - Decimal(c.monto_pagado).quantize(CENTAVO)
-            )
-            if falta_en_cuota <= 0:
-                continue
-            aplicado_a_esta = min(restante_capital, falta_en_cuota)
-            c.monto_pagado = (Decimal(c.monto_pagado) + aplicado_a_esta).quantize(CENTAVO)
-            _marcar_estado_cuota(c)
-            restante_capital -= aplicado_a_esta
+    # Reparto del capital: estrictamente secuencial por número de cuota,
+    # sin perder centavos y sin saltar cuotas — igual haya llegado o no un
+    # cuota_id explícito (ver _aplicar_capital_secuencial).
+    _aplicar_capital_secuencial(factura, aplicado_capital, cuota_inicio=cuota_seleccionada)
 
     if factura.saldo_capital <= 0:
         factura.estado = EstadoFactura.pagada

@@ -120,6 +120,7 @@ class FacturaOut(BaseModel):
     descuento: float
     tasa_interes_prestamo: Optional[float] = None
     interes_prestamo: float = 0
+    notas: Optional[str] = None
     total: float
     saldo_capital: float
     interes_acumulado: float

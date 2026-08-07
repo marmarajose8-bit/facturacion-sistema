@@ -129,8 +129,19 @@ class Factura(Base):
 
     @property
     def texto_cuota(self) -> str:
-        """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'."""
-        return f"Cuota {self.cuota_actual} de {self.total_cuotas}"
+        """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'. Si la
+        cuota que toca ahora ya tiene un abono parcial (pero no está
+        completa), se le agrega cuánto falta exacto — así cada pago se ve
+        reflejado aunque todavía no alcance para completar esa cuota."""
+        base = f"Cuota {self.cuota_actual} de {self.total_cuotas}"
+        cuota = self.cuota_pendiente_actual
+        if cuota and self.estado != EstadoFactura.pagada:
+            capital = Decimal(cuota.monto_capital).quantize(Decimal("0.01"))
+            pagado = Decimal(cuota.monto_pagado).quantize(Decimal("0.01"))
+            falta = capital - pagado
+            if 0 < pagado and falta > 0:
+                return f"{base} (faltan RD${falta:,.2f})"
+        return base
 
     @property
     def cuota_pendiente_actual(self):

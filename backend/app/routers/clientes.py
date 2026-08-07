@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import decode_token, requerir_admin
 from app.models.cliente import Cliente
-from app.models.factura import Factura, FacturaItem, Cuota
+from app.models.factura import Factura, FacturaItem, Cuota, EstadoFactura
 from app.models.pago import Pago, Recibo
 from app.schemas.cliente import ClienteCreate, ClienteUpdate, ClienteOut
 
@@ -63,12 +63,38 @@ def actualizar_cliente(cliente_id: int, payload: ClienteUpdate, db: Session = De
 
 @router.delete("/{cliente_id}", status_code=204)
 def desactivar_cliente(cliente_id: int, db: Session = Depends(get_db)):
-    """Baja lógica: nunca se elimina físicamente un cliente con historial financiero."""
+    """Baja lógica: nunca se elimina físicamente un cliente con historial financiero.
+    Además cierra (anula) sus facturas activas para que dejen de aparecer como
+    deuda viva en Cartera/Mora — un cliente desactivado no debe seguir generando
+    alertas de cobro."""
     cliente = db.query(Cliente).get(cliente_id)
     if not cliente:
         raise HTTPException(404, "Cliente no encontrado")
     cliente.activo = False
+    db.query(Factura).filter(
+        Factura.cliente_id == cliente_id,
+        Factura.estado.notin_([EstadoFactura.pagada, EstadoFactura.anulada, EstadoFactura.reenganchada]),
+    ).update({"estado": EstadoFactura.anulada}, synchronize_session=False)
     db.commit()
+
+
+@router.post("/{cliente_id}/resetear", response_model=ClienteOut, dependencies=[Depends(requerir_admin)])
+def resetear_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    """Cierra (anula) todas las facturas/préstamos activos de un cliente para que
+    arranque 'en cero', SIN desactivarlo ni borrar su historial — las facturas
+    viejas se conservan (quedan como anuladas) para consulta futura, solo dejan
+    de contar como deuda viva. Útil para clientes reales a los que se les quiere
+    dar un préstamo nuevo sin arrastrar cuentas viejas."""
+    cliente = db.query(Cliente).get(cliente_id)
+    if not cliente:
+        raise HTTPException(404, "Cliente no encontrado")
+    db.query(Factura).filter(
+        Factura.cliente_id == cliente_id,
+        Factura.estado.notin_([EstadoFactura.pagada, EstadoFactura.anulada, EstadoFactura.reenganchada]),
+    ).update({"estado": EstadoFactura.anulada}, synchronize_session=False)
+    db.commit()
+    db.refresh(cliente)
+    return cliente
 
 
 @router.delete("/{cliente_id}/permanente", status_code=204, dependencies=[Depends(requerir_admin)])

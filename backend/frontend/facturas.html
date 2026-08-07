@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Facturas — RYM Inversiones</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/css/styles.css" />
 <style>
@@ -99,9 +100,6 @@
       <h2 class="text-xl font-semibold mb-1">¿Cada cuánto te va a pagar?</h2>
       <p class="text-sm mb-4" style="color:var(--text-dim)">Toca una opción.</p>
       <div class="space-y-2 mb-4">
-        <button type="button" class="asistente-opcion" data-valor="diario" onclick="asistenteElegirFrecuencia('diario')">
-          <b>Diario</b><br><span class="text-xs" style="color:var(--text-dim)">Paga todos los días</span>
-        </button>
         <button type="button" class="asistente-opcion" data-valor="semanal" onclick="asistenteElegirFrecuencia('semanal')">
           <b>Semanal</b><br><span class="text-xs" style="color:var(--text-dim)">Paga una vez por semana</span>
         </button>
@@ -152,7 +150,7 @@
         <input id="llenadoRapidoTexto" class="w-full" placeholder="Ej: Juan Pérez, 5000, quincenal" />
         <button type="button" class="btn-ghost whitespace-nowrap" onclick="llenarRapido()">Llenar</button>
       </div>
-      <p class="text-xs mt-1" style="color:var(--text-dim)">Frecuencia: diario, quincenal o mensual (si no la escribes, queda en mensual).</p>
+      <p class="text-xs mt-1" style="color:var(--text-dim)">Frecuencia: semanal, quincenal o mensual (si no la escribes, queda en mensual).</p>
     </div>
 
     <form id="formFactura" class="space-y-3">
@@ -170,7 +168,7 @@
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Frecuencia de cobro</label>
           <select id="frecuencia_pago" class="w-full mt-1">
-            <option value="diario">Diario</option>
+            <option value="semanal">Semanal</option>
             <option value="quincenal">Quincenal (15 y 30)</option>
             <option value="mensual" selected>Mensual</option>
           </select>
@@ -178,6 +176,13 @@
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Número de cuotas (1 = pago único)</label>
           <input type="number" id="numero_cuotas" value="1" min="1" class="w-full mt-1" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">% de interés del préstamo (opcional)</label>
+          <input type="number" id="tasa_interes_prestamo" step="0.01" min="0" placeholder="ej: 15" class="w-full mt-1" />
+          <p class="text-xs mt-1" style="color:var(--text-dim)">Libre — pon lo que cobres (usual en RD: 5% a 30% según plazo). Se aplica una sola vez sobre el capital.</p>
         </div>
       </div>
 
@@ -217,7 +222,6 @@
           <option value="efectivo">Efectivo</option>
           <option value="transferencia">Transferencia</option>
           <option value="tarjeta">Tarjeta</option>
-          <option value="cheque">Cheque</option>
         </select>
       </div>
       <div>
@@ -390,7 +394,7 @@ function normalizar(txt) {
 
 function calcularVencimiento(frecuencia) {
   const hoy = new Date();
-  if (frecuencia === "diario") hoy.setDate(hoy.getDate() + 1);
+  if (frecuencia === "semanal") hoy.setDate(hoy.getDate() + 7);
   else if (frecuencia === "semanal") hoy.setDate(hoy.getDate() + 7);
   else if (frecuencia === "quincenal") hoy.setDate(hoy.getDate() + 15);
   else hoy.setMonth(hoy.getMonth() + 1);
@@ -398,7 +402,7 @@ function calcularVencimiento(frecuencia) {
 }
 
 /* ================== ASISTENTE PASO A PASO (modo fácil) ================== */
-const asistenteEtiquetas = { diario: "Diario", semanal: "Semanal", quincenal: "Quincenal (15 y 30)", mensual: "Mensual" };
+const asistenteEtiquetas = { semanal: "Semanal", quincenal: "Quincenal (15 y 30)", mensual: "Mensual" };
 let asistente = { clienteId: null, clienteNombre: "", monto: null, frecuencia: null, cuotas: 1 };
 
 async function abrirAsistente() {
@@ -485,7 +489,7 @@ function llenarRapido() {
   const frecuenciaTexto = normalizar(partes[2] || "mensual");
 
   let frecuencia = "mensual";
-  if (frecuenciaTexto.startsWith("diari")) frecuencia = "diario";
+  if (frecuenciaTexto.startsWith("diari") || frecuenciaTexto.startsWith("seman")) frecuencia = "semanal";
   else if (frecuenciaTexto.startsWith("quincen")) frecuencia = "quincenal";
   else if (frecuenciaTexto.startsWith("mensual")) frecuencia = "mensual";
 
@@ -532,6 +536,8 @@ document.getElementById("formFactura").addEventListener("submit", async (e) => {
       fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
       frecuencia_pago: document.getElementById("frecuencia_pago").value,
       numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
+      tasa_interes_prestamo: document.getElementById("tasa_interes_prestamo").value
+        ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null,
       items,
     }});
     toast("Factura emitida correctamente");
@@ -625,12 +631,56 @@ async function cargarFacturas() {
             ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}
             ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:#f0a500" onclick="abrirModalReenganche(${f.id})">Reenganchar</button>` : ""}
             <button class="text-sm" style="color:var(--text-dim)" title="Descargar PDF" onclick="descargarPDFFactura(${f.id}, '${f.numero_factura}').catch(err => toast(err.message, 'error'))">PDF</button>
+            <button class="text-sm" style="color:var(--text-dim)" title="Descargar como imagen (JPG)" onclick="descargarJPGFactura(${f.id}).catch(err => toast(err.message, 'error'))">JPG</button>
             <button class="text-sm" style="color:#25D366" title="Enviar por WhatsApp" onclick="enviarPorWhatsapp(${f.id})">WhatsApp</button>
           </div>
         </td>
       </tr>
     `).join("") || `<tr><td colspan="10" class="text-center py-8" style="color:var(--text-dim)">Sin facturas registradas aún.</td></tr>`;
   } catch (err) { toast(err.message, "error"); }
+}
+
+async function descargarJPGFactura(facturaId) {
+  const f = facturasPorId[facturaId];
+  if (!f) throw new Error("No encontré esa factura, refresca la página e intenta de nuevo");
+
+  // Arma un recibo visual (fondo blanco, para que se vea bien como imagen/foto)
+  const recibo = document.createElement("div");
+  recibo.style.cssText = "position:fixed; left:-9999px; top:0; width:380px; background:#ffffff; color:#111827; font-family:system-ui,sans-serif; padding:24px; border-radius:12px;";
+  recibo.innerHTML = `
+    <div style="text-align:center; margin-bottom:16px;">
+      <img src="static/img/logo-rym.jpeg" style="width:56px; height:56px; border-radius:8px; object-fit:cover; margin:0 auto 8px;" />
+      <div style="font-size:18px; font-weight:700;">RYM Inversiones</div>
+      <div style="font-size:12px; color:#6b7280;">Comprobante de factura</div>
+    </div>
+    <div style="border-top:1px dashed #d1d5db; border-bottom:1px dashed #d1d5db; padding:12px 0; margin-bottom:12px; font-size:14px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">No. Factura</span><strong>${f.numero_factura}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Cliente</span><strong>${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Vencimiento</span><strong>${fmt.date(f.fecha_vencimiento)}</strong></div>
+      <div style="display:flex; justify-content:space-between;"><span style="color:#6b7280;">Cuota</span><strong>${f.texto_cuota}</strong></div>
+    </div>
+    <div style="font-size:14px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Total</span><strong>${fmt.money(f.total)}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Abonado</span><strong>${fmt.money(f.total_abonado)}</strong></div>
+      <div style="display:flex; justify-content:space-between; font-size:16px; margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
+    </div>
+    <div style="text-align:center; margin-top:16px; font-size:11px; color:#9ca3af;">Generado el ${fmt.date(new Date())}</div>
+  `;
+  document.body.appendChild(recibo);
+
+  try {
+    const canvas = await html2canvas(recibo, { scale: 2, backgroundColor: "#ffffff" });
+    const blobUrl = canvas.toDataURL("image/jpeg", 0.92);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `factura_${f.numero_factura}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast("Recibo descargado como imagen JPG");
+  } finally {
+    recibo.remove();
+  }
 }
 
 async function enviarPorWhatsapp(facturaId) {

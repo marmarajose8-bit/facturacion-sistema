@@ -41,17 +41,27 @@ class Factura(Base):
     fecha_emision = Column(Date, server_default=func.current_date())
     fecha_vencimiento = Column(Date, nullable=False)
 
-    # Cada cuánto cobra: diario, quincenal (15 y 30) o mensual
+    # Cada cuánto cobra: semanal, quincenal (15 y 30) o mensual
     frecuencia_pago = Column(String(20), nullable=False, default="mensual")
 
     # Desglose financiero
     subtotal = Column(Numeric(14, 2), nullable=False, default=0)
     impuestos = Column(Numeric(14, 2), nullable=False, default=0)
     descuento = Column(Numeric(14, 2), nullable=False, default=0)
+    # Interés del préstamo (distinto de interes_acumulado, que es mora por
+    # atraso). Se cobra una sola vez sobre el capital, no es compuesto.
+    # Ej: 15.00 = 15%. Campo libre: en RD los prestamistas informales cobran
+    # entre 5% y 30% según el plazo (semanal/quincenal/mensual).
+    tasa_interes_prestamo = Column(Numeric(5, 2), nullable=True)
+    interes_prestamo = Column(Numeric(14, 2), nullable=False, default=0)
     total = Column(Numeric(14, 2), nullable=False, default=0)
 
     # Saldo vivo (capital + intereses/recargos - abonos)
     saldo_capital = Column(Numeric(14, 2), nullable=False, default=0)
+    # Interés PROPIO del préstamo aún pendiente de cobrar (lo que definió
+    # tasa_interes_prestamo al crear la factura). Distinto de interes_acumulado,
+    # que es el interés por MORA (atraso), calculado día a día en services/mora.py.
+    interes_prestamo_pendiente = Column(Numeric(14, 2), nullable=False, default=0)
     interes_acumulado = Column(Numeric(14, 2), nullable=False, default=0)
     recargo_mora = Column(Numeric(14, 2), nullable=False, default=0)
 
@@ -79,8 +89,14 @@ class Factura(Base):
 
     @property
     def saldo_pendiente(self) -> Decimal:
-        """Lo que le falta exactamente por pagar (capital + interés + mora vigentes)."""
-        return Decimal(self.saldo_capital) + Decimal(self.interes_acumulado) + Decimal(self.recargo_mora)
+        """Lo que le falta exactamente por pagar: capital + interés del
+        préstamo pendiente + interés por mora + recargo, todos vigentes."""
+        return (
+            Decimal(self.saldo_capital)
+            + Decimal(self.interes_prestamo_pendiente)
+            + Decimal(self.interes_acumulado)
+            + Decimal(self.recargo_mora)
+        )
 
     @property
     def total_cuotas(self) -> int:

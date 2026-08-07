@@ -114,12 +114,14 @@ class FacturaOut(BaseModel):
     factura_origen_id: Optional[int] = None
     fecha_emision: date
     fecha_vencimiento: date
+    fecha_vencimiento_vigente: date  # vencimiento real de la cuota que toca cobrar hoy (usar este para mostrar/cobrar)
     frecuencia_pago: str = "mensual"
     subtotal: float
     impuestos: float
     descuento: float
     tasa_interes_prestamo: Optional[float] = None
     interes_prestamo: float = 0
+    notas: Optional[str] = None
     total: float
     saldo_capital: float
     interes_acumulado: float

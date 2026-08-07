@@ -133,6 +133,32 @@ class Factura(Base):
         return f"Cuota {self.cuota_actual} de {self.total_cuotas}"
 
     @property
+    def cuota_pendiente_actual(self):
+        """El objeto Cuota que corresponde cobrar hoy (la primera no pagada,
+        por número de cuota). None si la factura no tiene plan de cuotas."""
+        if not self.cuotas:
+            return None
+        pendientes = sorted(
+            (c for c in self.cuotas if c.estado != EstadoFactura.pagada),
+            key=lambda c: c.numero_cuota,
+        )
+        if pendientes:
+            return pendientes[0]
+        # Todas pagadas: devuelve la última como referencia
+        return sorted(self.cuotas, key=lambda c: c.numero_cuota)[-1]
+
+    @property
+    def fecha_vencimiento_vigente(self):
+        """La fecha que de verdad importa para mora/cobranza hoy: el
+        vencimiento de la CUOTA que toca pagar ahora mismo — no la fecha
+        fija del préstamo completo. Si no hay plan de cuotas (pago único),
+        cae de vuelta a fecha_vencimiento, que en ese caso es la misma cosa.
+        Esto es lo que se le debe pasar a calcular_dias_atraso(), y lo que
+        deben mostrar la tabla, el PDF/JPG y el mensaje de WhatsApp."""
+        cuota = self.cuota_pendiente_actual
+        return cuota.fecha_vencimiento if cuota else self.fecha_vencimiento
+
+    @property
     def editable_completo(self) -> bool:
         """True si todavía no se ha registrado ningún pago: en ese caso es
         seguro dejar editar montos, ítems, cuotas y frecuencia sin

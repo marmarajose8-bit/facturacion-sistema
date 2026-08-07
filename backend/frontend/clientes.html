@@ -48,7 +48,7 @@
       <table class="ledger w-full" style="min-width:680px;">
         <thead>
           <tr>
-            <th>Cliente</th><th>Documento</th><th>Contacto</th><th>Límite crédito</th><th>Estado</th><th></th><th></th><th></th>
+            <th>Cliente</th><th>Documento</th><th>Contacto</th><th>Límite crédito</th><th>Estado</th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="tablaClientes"></tbody>
@@ -161,9 +161,22 @@ async function cargar() {
         <td data-label="Estado"><span class="badge ${c.activo ? "badge-pagada" : "badge-anulada"}">${c.activo ? "Activo" : "Inactivo"}</span></td>
         <td><a href="facturas.html?cliente_id=${c.id}" class="text-sm" style="color:var(--accent)">Ver facturas</a></td>
         <td><button onclick="abrirModalEditar(${c.id})" class="text-sm" style="color:var(--text-dim)">Editar</button></td>
+        <td><button onclick="reiniciarCliente(${c.id}, '${(c.razon_social || "").replace(/'/g, "\\'")}')" class="text-sm" style="color:var(--warning, #d97706)">Reiniciar</button></td>
         <td><button onclick="eliminarCliente(${c.id}, '${(c.razon_social || "").replace(/'/g, "\\'")}')" class="text-sm" style="color:var(--danger-2)">Eliminar</button></td>
       </tr>
-    `).join("") || `<tr><td colspan="8" class="text-center py-8" style="color:var(--text-dim)">Sin clientes registrados aún.</td></tr>`;
+    `).join("") || `<tr><td colspan="9" class="text-center py-8" style="color:var(--text-dim)">Sin clientes registrados aún.</td></tr>`;
+  } catch (err) { toast(err.message, "error"); }
+}
+
+async function reiniciarCliente(id, nombre) {
+  const confirmacion = prompt(
+    `Esto CIERRA todos los préstamos/facturas activos de "${nombre}" (quedan anulados, no se borran — puedes seguir consultándolos en el historial) para que arranque desde cero. El cliente sigue activo, solo se le limpia la deuda pendiente.\n\nEscribe REINICIAR para confirmar:`
+  );
+  if (confirmacion !== "REINICIAR") { toast("Cancelado — no se reinició nada", "error"); return; }
+  try {
+    await api(`/api/clientes/${id}/resetear`, { method: "POST" });
+    toast("Cliente reiniciado — sus préstamos activos quedaron anulados en el historial");
+    cargar();
   } catch (err) { toast(err.message, "error"); }
 }
 

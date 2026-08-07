@@ -61,7 +61,10 @@ def actualizar_estado_mora_factura(factura: Factura, hoy: date | None = None) ->
         factura.estado_mora = EstadoMora.al_dia
         return factura
 
-    dias = calcular_dias_atraso(factura.fecha_vencimiento, hoy)
+    # Usa el vencimiento de la CUOTA que toca cobrar hoy, no la fecha fija
+    # del préstamo completo — así un cliente que va al día cuota a cuota no
+    # aparece en mora por atraso del plan original.
+    dias = calcular_dias_atraso(factura.fecha_vencimiento_vigente, hoy)
     factura.dias_atraso = dias
     factura.estado_mora = clasificar_mora(dias)
 

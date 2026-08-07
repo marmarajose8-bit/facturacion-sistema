@@ -40,7 +40,7 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
     cliente = factura.cliente
     datos = [
         ["Cliente:", cliente.razon_social, "Fecha emisión:", str(factura.fecha_emision)],
-        ["Documento:", cliente.numero_documento, "Fecha vencimiento:", str(factura.fecha_vencimiento)],
+        ["Documento:", cliente.numero_documento, "Fecha vencimiento:", str(factura.fecha_vencimiento_vigente)],
         ["Teléfono:", cliente.telefono or "-", "Estado:", factura.estado.value.capitalize()],
     ]
     tabla_datos = Table(datos, colWidths=[3 * cm, 6 * cm, 3.5 * cm, 4 * cm])

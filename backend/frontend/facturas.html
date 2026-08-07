@@ -51,6 +51,26 @@
       </div>
     </div>
 
+    <div class="flex flex-col sm:flex-row gap-2 mb-4">
+      <input id="buscadorFacturas" placeholder="Buscar por cliente, documento o número de factura..." class="flex-1" oninput="cargarFacturas()" />
+      <select id="filtroEstado" class="sm:w-56" onchange="cargarFacturas()">
+        <option value="">Todos los estados</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="parcial">Parcial</option>
+        <option value="pagada">Pagada</option>
+        <option value="vencida">Vencida</option>
+        <option value="anulada">Anulada</option>
+        <option value="reenganchada">Reenganchada</option>
+      </select>
+    </div>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
+      <label class="text-xs" style="color:var(--text-dim)">Desde</label>
+      <input type="date" id="filtroFechaDesde" class="sm:w-48" onchange="autocompletarHasta(); cargarFacturas();" />
+      <label class="text-xs" style="color:var(--text-dim)">Hasta</label>
+      <input type="date" id="filtroFechaHasta" class="sm:w-48" onchange="cargarFacturas()" />
+      <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="document.getElementById('filtroFechaDesde').value=''; document.getElementById('filtroFechaHasta').value=''; cargarFacturas();">limpiar fechas</button>
+    </div>
+
     <div class="panel overflow-hidden mb-8">
       <div class="overflow-x-auto">
       <table class="ledger w-full" style="min-width:680px;">
@@ -692,17 +712,38 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
   } catch (err) { toast(err.message, "error"); }
 });
 
+function autocompletarHasta() {
+  // Si eligió "Desde" y todavía no ha puesto "Hasta", se lo llena solo con
+  // la fecha de hoy — así no tiene que escoger las dos fechas cada vez.
+  const desde = document.getElementById("filtroFechaDesde");
+  const hasta = document.getElementById("filtroFechaHasta");
+  if (desde.value && !hasta.value) {
+    const hoy = new Date();
+    hasta.value = hoy.toISOString().slice(0, 10);
+  }
+}
+
 async function cargarFacturas() {
   try {
-    const qs = clienteFiltro ? `?cliente_id=${clienteFiltro}` : "";
+    const params = new URLSearchParams();
+    if (clienteFiltro) params.set("cliente_id", clienteFiltro);
+    const texto = document.getElementById("buscadorFacturas")?.value.trim();
+    if (texto) params.set("q", texto);
+    const estado = document.getElementById("filtroEstado")?.value;
+    if (estado) params.set("estado", estado);
+    const desde = document.getElementById("filtroFechaDesde")?.value;
+    if (desde) params.set("fecha_desde", desde);
+    const hasta = document.getElementById("filtroFechaHasta")?.value;
+    if (hasta) params.set("fecha_hasta", hasta);
+    const qs = params.toString() ? `?${params.toString()}` : "";
     const facturas = await api(`/api/facturas${qs}`);
     facturasPorId = {};
     facturas.forEach(f => facturasPorId[f.id] = f);
     document.getElementById("tablaFacturas").innerHTML = facturas.map(f => `
       <tr>
         <td class="font-mono-ledger" data-label="No. Factura">${f.numero_factura}</td>
-        <td data-label="Cliente">${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</td>
-        <td data-label="Vencimiento">${fmt.date(f.fecha_vencimiento)}</td>
+        <td data-label="Cliente">${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}${f.notas ? ` <span title="${f.notas.replace(/"/g, "&quot;")}" style="cursor:help; color:var(--text-dim)">📝</span>` : ""}</td>
+        <td data-label="Vencimiento">${fmt.date(f.fecha_vencimiento_vigente)}</td>
         <td class="font-mono-ledger" data-label="Total">${fmt.money(f.total)}</td>
         <td class="font-mono-ledger" data-label="Abonado">${fmt.money(f.total_abonado)}</td>
         <td class="font-mono-ledger" data-label="Saldo">${fmt.money(f.saldo_pendiente)}</td>
@@ -740,7 +781,7 @@ async function descargarJPGFactura(facturaId) {
     <div style="border-top:1px dashed #d1d5db; border-bottom:1px dashed #d1d5db; padding:12px 0; margin-bottom:12px; font-size:14px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">No. Factura</span><strong>${f.numero_factura}</strong></div>
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Cliente</span><strong>${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</strong></div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Vencimiento</span><strong>${fmt.date(f.fecha_vencimiento)}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Vencimiento</span><strong>${fmt.date(f.fecha_vencimiento_vigente)}</strong></div>
       <div style="display:flex; justify-content:space-between;"><span style="color:#6b7280;">Cuota</span><strong>${f.texto_cuota}</strong></div>
     </div>
     <div style="font-size:14px;">
@@ -749,6 +790,7 @@ async function descargarJPGFactura(facturaId) {
       <div style="display:flex; justify-content:space-between; font-size:16px; margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
     </div>
     <div style="text-align:center; margin-top:16px; font-size:11px; color:#9ca3af;">Generado el ${fmt.date(new Date())}</div>
+    ${f.notas ? `<div style="margin-top:14px; padding-top:10px; border-top:1px dashed #d1d5db; font-size:12px; color:#374151;"><strong>Nota:</strong> ${f.notas}</div>` : ""}
   `;
   document.body.appendChild(recibo);
 
@@ -777,7 +819,7 @@ async function enviarPorWhatsapp(facturaId) {
   try {
     await descargarPDFFactura(f.id, f.numero_factura);
     const saldo = f.saldo_pendiente;
-    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}, ${f.texto_cuota}). Vence el ${fmt.date(f.fecha_vencimiento)}.`;
+    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}, ${f.texto_cuota}). Vence el ${fmt.date(f.fecha_vencimiento_vigente)}.`;
     abrirWhatsapp(f.cliente.telefono, mensaje);
     toast("Se descargó el PDF — adjúntalo en la conversación de WhatsApp que se abrió");
   } catch (err) { toast(err.message, "error"); }

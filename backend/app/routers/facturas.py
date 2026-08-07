@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.core.security import decode_token
+from app.core.security import decode_token, requerir_admin
 from app.core.config import settings
 from app.models.cliente import Cliente
 from app.models.factura import Factura, FacturaItem, Cuota, EstadoFactura
@@ -23,8 +23,8 @@ router = APIRouter(prefix="/api/facturas", tags=["Facturación"], dependencies=[
 
 def _siguiente_vencimiento(base: date, numero: int, frecuencia: str) -> date:
     """Cada cuánto cae la próxima cuota según la frecuencia de pago."""
-    if frecuencia == "diario":
-        return base + relativedelta(days=numero - 1)
+    if frecuencia == "semanal":
+        return base + relativedelta(weeks=numero - 1)
     if frecuencia == "quincenal":
         return base + relativedelta(days=15 * (numero - 1))
     return base + relativedelta(months=numero - 1)
@@ -83,8 +83,8 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
     if not cliente:
         raise HTTPException(404, "Cliente no encontrado")
 
-    if payload.frecuencia_pago not in ("diario", "quincenal", "mensual"):
-        raise HTTPException(400, "Frecuencia inválida: usa diario, quincenal o mensual")
+    if payload.frecuencia_pago not in ("semanal", "quincenal", "mensual"):
+        raise HTTPException(400, "Frecuencia inválida: usa semanal, quincenal o mensual")
 
     subtotal = Decimal("0")
     impuestos = Decimal("0")
@@ -112,7 +112,11 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         ))
 
     descuento = Decimal(str(payload.descuento))
-    total = subtotal + impuestos - descuento
+
+    tasa_interes = Decimal(str(payload.tasa_interes_prestamo)) if payload.tasa_interes_prestamo else Decimal("0")
+    interes_prestamo = (subtotal * tasa_interes / 100).quantize(Decimal("0.01"))
+
+    total = subtotal + impuestos + interes_prestamo - descuento
 
     factura = Factura(
         numero_factura=generar_numero_factura(db),
@@ -123,6 +127,8 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         subtotal=subtotal,
         impuestos=impuestos,
         descuento=descuento,
+        tasa_interes_prestamo=payload.tasa_interes_prestamo,
+        interes_prestamo=interes_prestamo,
         total=total,
         saldo_capital=total,
         estado=EstadoFactura.pendiente,
@@ -132,7 +138,7 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
 
     # Generar plan de cuotas si aplica (reparto igualitario de capital).
     # La frecuencia decide cada cuánto cae la próxima cuota:
-    #   diario -> +1 día, quincenal -> +15 días, mensual -> +1 mes (por defecto)
+    #   semanal -> +7 días, quincenal -> +15 días, mensual -> +1 mes (por defecto)
     factura.cuotas = _generar_plan_cuotas(
         total, payload.fecha_vencimiento, payload.numero_cuotas, payload.frecuencia_pago
     )
@@ -196,8 +202,8 @@ def reenganchar_factura(factura_id: int, payload: ReenganeCreate, db: Session = 
     if not factura:
         raise HTTPException(404, "Factura no encontrada")
 
-    if payload.frecuencia_pago and payload.frecuencia_pago not in ("diario", "quincenal", "mensual"):
-        raise HTTPException(400, "Frecuencia inválida: usa diario, quincenal o mensual")
+    if payload.frecuencia_pago and payload.frecuencia_pago not in ("semanal", "quincenal", "mensual"):
+        raise HTTPException(400, "Frecuencia inválida: usa semanal, quincenal o mensual")
 
     nueva_factura = ejecutar_reenganche(
         db=db,
@@ -215,7 +221,7 @@ def reenganchar_factura(factura_id: int, payload: ReenganeCreate, db: Session = 
     return nueva_factura
 
 
-@router.post("/{factura_id}/anular", response_model=FacturaOut)
+@router.post("/{factura_id}/anular", response_model=FacturaOut, dependencies=[Depends(requerir_admin)])
 def anular_factura(factura_id: int, db: Session = Depends(get_db)):
     factura = db.query(Factura).get(factura_id)
     if not factura:

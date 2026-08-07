@@ -30,8 +30,9 @@ class FacturaCreate(BaseModel):
     cliente_id: int
     fecha_vencimiento: date
     numero_cuotas: int = 1  # 1 = pago único, >1 genera plan de cuotas
-    frecuencia_pago: str = "mensual"  # diario | quincenal | mensual
+    frecuencia_pago: str = "mensual"  # semanal | quincenal | mensual
     descuento: float = 0
+    tasa_interes_prestamo: Optional[float] = None
     notas: Optional[str] = None
     items: List[FacturaItemCreate]
 
@@ -101,6 +102,8 @@ class FacturaOut(BaseModel):
     subtotal: float
     impuestos: float
     descuento: float
+    tasa_interes_prestamo: Optional[float] = None
+    interes_prestamo: float = 0
     total: float
     saldo_capital: float
     interes_acumulado: float

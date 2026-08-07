@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import decode_token
+from app.core.security import decode_token, requerir_admin
 from app.models.cliente import Cliente
 from app.models.factura import Factura, FacturaItem, Cuota
 from app.models.pago import Pago, Recibo
@@ -71,7 +71,7 @@ def desactivar_cliente(cliente_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-@router.delete("/{cliente_id}/permanente", status_code=204)
+@router.delete("/{cliente_id}/permanente", status_code=204, dependencies=[Depends(requerir_admin)])
 def eliminar_cliente_permanente(cliente_id: int, db: Session = Depends(get_db)):
     """Borra al cliente y TODO su historial financiero (facturas, cuotas, ítems,
     pagos y recibos). Es IRREVERSIBLE — pensado para limpiar clientes de PRUEBA,

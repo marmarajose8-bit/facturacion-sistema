@@ -2,15 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import hash_password, verify_password, create_access_token, decode_token
+from app.core.security import hash_password, verify_password, create_access_token, decode_token, requerir_admin
 from app.models.usuario import Usuario
 from app.schemas.usuario import UsuarioCreate, UsuarioOut, LoginRequest, TokenResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Autenticación"])
 
 
-@router.post("/registro", response_model=UsuarioOut, status_code=201)
+@router.post("/registro", response_model=UsuarioOut, status_code=201, dependencies=[Depends(requerir_admin)])
 def registrar_usuario(payload: UsuarioCreate, db: Session = Depends(get_db)):
+    """Crea un usuario nuevo (cajero, cobrador o admin).
+    Requiere estar logueado como admin: antes cualquiera en internet podía
+    crear una cuenta admin sin autenticarse, así que se cerró el acceso."""
     existente = db.query(Usuario).filter(Usuario.email == payload.email).first()
     if existente:
         raise HTTPException(400, "Ya existe un usuario con ese email")

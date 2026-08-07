@@ -42,3 +42,16 @@ def decode_token(token: str = Depends(oauth2_scheme)) -> dict:
         return payload
     except JWTError:
         raise credentials_exception
+
+
+def requerir_admin(payload: dict = Depends(decode_token)) -> dict:
+    """Guardia de autorización: exige que el token pertenezca a un usuario
+    con rol 'admin'. Se usa en endpoints delicados (crear usuarios, borrar
+    clientes permanentemente, anular facturas) para que un cajero o cobrador
+    no pueda ejecutarlos aunque tenga sesión iniciada."""
+    if payload.get("rol") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta acción requiere permisos de administrador",
+        )
+    return payload

@@ -65,7 +65,7 @@
     </div>
     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
       <label class="text-xs" style="color:var(--text-dim)">Desde</label>
-      <input type="date" id="filtroFechaDesde" class="sm:w-48" onchange="cargarFacturas()" />
+      <input type="date" id="filtroFechaDesde" class="sm:w-48" onchange="autocompletarHasta(); cargarFacturas();" />
       <label class="text-xs" style="color:var(--text-dim)">Hasta</label>
       <input type="date" id="filtroFechaHasta" class="sm:w-48" onchange="cargarFacturas()" />
       <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="document.getElementById('filtroFechaDesde').value=''; document.getElementById('filtroFechaHasta').value=''; cargarFacturas();">limpiar fechas</button>
@@ -711,6 +711,17 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
     }
   } catch (err) { toast(err.message, "error"); }
 });
+
+function autocompletarHasta() {
+  // Si eligió "Desde" y todavía no ha puesto "Hasta", se lo llena solo con
+  // la fecha de hoy — así no tiene que escoger las dos fechas cada vez.
+  const desde = document.getElementById("filtroFechaDesde");
+  const hasta = document.getElementById("filtroFechaHasta");
+  if (desde.value && !hasta.value) {
+    const hoy = new Date();
+    hasta.value = hoy.toISOString().slice(0, 10);
+  }
+}
 
 async function cargarFacturas() {
   try {

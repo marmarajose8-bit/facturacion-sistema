@@ -42,6 +42,7 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
         ["Cliente:", cliente.razon_social, "Fecha emisión:", str(factura.fecha_emision)],
         ["Documento:", cliente.numero_documento, "Fecha vencimiento:", str(factura.fecha_vencimiento_vigente)],
         ["Teléfono:", cliente.telefono or "-", "Estado:", factura.estado.value.capitalize()],
+        ["Cuota:", factura.texto_cuota, "", ""],
     ]
     tabla_datos = Table(datos, colWidths=[3 * cm, 6 * cm, 3.5 * cm, 4 * cm])
     tabla_datos.setStyle(TableStyle([
@@ -85,9 +86,10 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
     totales = [
         ["Subtotal", _fmt(factura.subtotal)],
         ["Impuestos", _fmt(factura.impuestos)],
+        ["Interés del préstamo", _fmt(factura.interes_prestamo)],
         ["Descuento", f"-{_fmt(factura.descuento)}"],
         ["Total", _fmt(factura.total)],
-        ["Saldo pendiente", _fmt(factura.saldo_capital + factura.interes_acumulado + factura.recargo_mora)],
+        ["Saldo pendiente", _fmt(factura.saldo_pendiente)],
     ]
     tabla_totales = Table(totales, colWidths=[13 * cm, 4 * cm])
     tabla_totales.setStyle(TableStyle([

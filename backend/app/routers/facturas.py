@@ -12,6 +12,7 @@ from app.core.security import decode_token, requerir_admin
 from app.core.config import settings
 from app.models.cliente import Cliente
 from app.models.factura import Factura, FacturaItem, Cuota, EstadoFactura
+from app.models.pago import Pago, Recibo
 from app.schemas.factura import (
     FacturaCreate, FacturaUpdate, FacturaOut, FacturaItemCreate, ReenganeCreate, ReenganeElegibilidadOut,
 )
@@ -44,7 +45,7 @@ def _generar_plan_cuotas(total: Decimal, fecha_base: date, numero_cuotas: int, f
     for i in range(1, n_cuotas + 1):
         monto = monto_por_cuota
         if i == n_cuotas:
-            monto = total - acumulado  # ajuste de redondeo en la última cuota
+            monto = total - acumulado
         acumulado += monto
         cuotas.append(Cuota(
             numero_cuota=i,
@@ -118,8 +119,6 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         impuestos += impuesto_linea
 
         items_db.append(FacturaItem(
-            # Si el usuario dejó la descripción en blanco, se usa un texto
-            # predeterminado en vez de bloquear la emisión de la factura/PDF.
             descripcion=item.descripcion or settings.PRESTAMO_DESCRIPCION_DEFECTO,
             cantidad=cant,
             precio_unitario=precio,
@@ -152,9 +151,6 @@ def crear_factura(payload: FacturaCreate, db: Session = Depends(get_db)):
         items=items_db,
     )
 
-    # Generar plan de cuotas si aplica (reparto igualitario de capital).
-    # La frecuencia decide cada cuánto cae la próxima cuota:
-    #   semanal -> +7 días, quincenal -> +15 días, mensual -> +1 mes (por defecto)
     factura.cuotas = _generar_plan_cuotas(
         total, payload.fecha_vencimiento, payload.numero_cuotas, payload.frecuencia_pago
     )
@@ -211,7 +207,6 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
     if factura.estado in (EstadoFactura.pagada, EstadoFactura.anulada):
         raise HTTPException(400, "No se puede editar una factura pagada o anulada")
 
-    # --- Campos siempre editables, tenga o no pagos ---
     if payload.frecuencia_pago is not None:
         if payload.frecuencia_pago not in ("semanal", "quincenal", "mensual"):
             raise HTTPException(400, "Frecuencia inválida: usa semanal, quincenal o mensual")
@@ -220,9 +215,6 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
         factura.notas = payload.notas
     if payload.fecha_vencimiento is not None:
         factura.fecha_vencimiento = payload.fecha_vencimiento
-        # Si no tiene pagos, la fecha de la primera cuota también se mueve
-        # (si sí tiene pagos, solo se ajusta la referencia de la factura,
-        # las cuotas ya generadas no se tocan para no descuadrar lo cobrado).
 
     tiene_pagos = len(factura.pagos) > 0
     quiere_cambiar_montos = any(
@@ -230,9 +222,6 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
     )
 
     if quiere_cambiar_montos:
-        # Antes de tocar nada, calculamos cuánto capital ya se cobró en esta
-        # factura (independiente de items/cuotas) para poder reaplicarlo al
-        # plan corregido sin perder el rastro de lo ya pagado.
         capital_ya_pagado = sum((Decimal(p.monto_capital) for p in factura.pagos), Decimal("0"))
 
         items_payload = payload.items if payload.items is not None else [
@@ -273,9 +262,6 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
         )
 
         if tiene_pagos and capital_ya_pagado > 0:
-            # Reaplica lo ya cobrado sobre el plan corregido, cuota por cuota
-            # en orden, igual que el reparto normal de un abono — así el
-            # historial de pagos sigue siendo válido contra los datos nuevos.
             CENTAVO = Decimal("0.01")
             restante = capital_ya_pagado
             for c in sorted(nuevas_cuotas, key=lambda c: c.numero_cuota):
@@ -333,9 +319,6 @@ def descargar_pdf_factura(factura_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{factura_id}/reenganche/elegibilidad", response_model=ReenganeElegibilidadOut)
 def elegibilidad_reenganche(factura_id: int, db: Session = Depends(get_db)):
-    """Consulta rápida (sin efectos secundarios en BD más allá del recálculo
-    de mora habitual) para que el frontend muestre si el cliente ya puede
-    reenganchar y cuánto lleva pagado, antes de intentar la operación."""
     factura = db.query(Factura).get(factura_id)
     if not factura:
         raise HTTPException(404, "Factura no encontrada")
@@ -348,9 +331,6 @@ def elegibilidad_reenganche(factura_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{factura_id}/reenganche", response_model=FacturaOut, status_code=201)
 def reenganchar_factura(factura_id: int, payload: ReenganeCreate, db: Session = Depends(get_db)):
-    """Amplía/reengancha un préstamo activo: consolida el saldo pendiente de
-    `factura_id` más `monto_adicional` en una factura nueva, y cierra la
-    anterior como 'reenganchada' (sin borrar su historial de pagos)."""
     factura = db.query(Factura).get(factura_id)
     if not factura:
         raise HTTPException(404, "Factura no encontrada")
@@ -385,3 +365,30 @@ def anular_factura(factura_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(factura)
     return factura
+
+
+@router.delete("/{factura_id}", status_code=204, dependencies=[Depends(requerir_admin)])
+def eliminar_factura(factura_id: int, db: Session = Depends(get_db)):
+    """Borra una factura y todo lo que le pertenece (cuotas, ítems, pagos,
+    recibos). Es IRREVERSIBLE. Pensado para que el usuario limpie a mano
+    facturas ya pagadas/cerradas o de prueba — el sistema NUNCA borra nada
+    solo, esto es siempre una decisión manual desde el botón "Eliminar".
+    No toca al cliente: el cliente y sus demás facturas siguen intactos."""
+    factura = db.query(Factura).get(factura_id)
+    if not factura:
+        raise HTTPException(404, "Factura no encontrada")
+
+    pago_ids = [p.id for p in db.query(Pago.id).filter(Pago.factura_id == factura_id)]
+    if pago_ids:
+        db.query(Recibo).filter(Recibo.pago_id.in_(pago_ids)).delete(synchronize_session=False)
+        db.query(Pago).filter(Pago.id.in_(pago_ids)).delete(synchronize_session=False)
+
+    db.query(Factura).filter(Factura.factura_origen_id == factura_id).update(
+        {"factura_origen_id": None}, synchronize_session=False
+    )
+
+    db.query(Cuota).filter(Cuota.factura_id == factura_id).delete(synchronize_session=False)
+    db.query(FacturaItem).filter(FacturaItem.factura_id == factura_id).delete(synchronize_session=False)
+
+    db.delete(factura)
+    db.commit()

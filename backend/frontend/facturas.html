@@ -448,8 +448,8 @@ function agregarItem() {
   div.style.border = "1px solid var(--border)";
   div.innerHTML = `
     <div class="grid grid-cols-12 gap-2 items-center">
-      <input class="col-span-8 item-desc" placeholder="Descripción (opcional)" />
-      <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Monto" required />
+      <input class="col-span-8 item-desc" placeholder="Concepto (opcional, ej: Préstamo personal)" />
+      <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Ej: 10000" required />
       <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.closest('.item-row').remove()">✕</button>
     </div>
     <div class="item-avanzado hidden grid grid-cols-2 gap-2 items-center mt-2">

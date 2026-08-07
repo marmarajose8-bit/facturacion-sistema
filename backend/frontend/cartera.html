@@ -53,7 +53,7 @@
       <table class="ledger w-full" style="min-width:900px;">
         <thead>
           <tr>
-            <th>Factura</th><th>Cliente</th><th>Abonado</th><th>Saldo restante</th><th>Cuota</th><th>Días atraso</th><th>Clasificación</th><th>Interés</th><th>Recargo</th>
+            <th>Factura</th><th>Cliente</th><th>Abonado</th><th>Saldo restante</th><th>Cuota</th><th>Días atraso</th><th>Clasificación</th>
           </tr>
         </thead>
         <tbody id="tablaCartera"></tbody>
@@ -100,10 +100,8 @@ async function cargar() {
         <td data-label="Cuota"><span class="text-sm">${i.texto_cuota}</span></td>
         <td class="font-mono-ledger" data-label="Días atraso">${i.dias_atraso}</td>
         <td data-label="Clasificación"><span class="badge badge-${i.estado_mora}">${i.estado_mora.replace("_"," ")}</span></td>
-        <td class="font-mono-ledger" data-label="Interés">${fmt.money(i.interes_acumulado)}</td>
-        <td class="font-mono-ledger" data-label="Recargo">${fmt.money(i.recargo_mora)}</td>
       </tr>
-    `).join("") || `<tr><td colspan="9" class="text-center py-8" style="color:var(--text-dim)">Sin cuentas bajo este filtro.</td></tr>`;
+    `).join("") || `<tr><td colspan="7" class="text-center py-8" style="color:var(--text-dim)">Sin cuentas bajo este filtro.</td></tr>`;
   } catch (err) { toast(err.message, "error"); }
 }
 

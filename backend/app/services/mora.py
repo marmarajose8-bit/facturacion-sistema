@@ -31,27 +31,21 @@ def clasificar_mora(dias_atraso: int) -> EstadoMora:
 
 def calcular_interes_y_recargo(saldo_capital: Decimal, dias_atraso: int) -> tuple[Decimal, Decimal]:
     """
-    Interés corriente simple proporcional a los días de atraso (base 30 días)
-    + un recargo fijo escalonado según la severidad de la mora.
-    Ajustar esta función según la política financiera real del cliente.
+    Sistema de cobro directo: NO se calcula ningún interés por mora ni
+    recargo automático por atraso. Lo único que el cliente debe es el
+    saldo de capital que quedó fijado al emitir la factura (que ya
+    incluye, si aplica, el interés del préstamo pactado una sola vez al
+    principio — eso se define en tasa_interes_prestamo/interes_prestamo,
+    no aquí).
+
+    Esta función se deja en su lugar (en vez de borrarla) solo para no
+    romper las llamadas existentes en mora.py/pagos.py/reenganche.py, pero
+    siempre devuelve (0, 0). dias_atraso y estado_mora se siguen calculando
+    aparte (ver actualizar_estado_mora_factura) porque son solo
+    informativos para saber a quién dar seguimiento — no le suman ni un
+    peso a lo que el cliente debe pagar.
     """
-    if dias_atraso <= 0 or saldo_capital <= 0:
-        return Decimal("0"), Decimal("0")
-
-    tasa_mensual = Decimal(str(settings.TASA_INTERES_MORA_MENSUAL))
-    interes = (saldo_capital * tasa_mensual * Decimal(dias_atraso) / Decimal(30)).quantize(Decimal("0.01"))
-
-    if dias_atraso >= settings.DIAS_MORA_EXTRAJUDICIAL:
-        recargo_pct = Decimal("0.10")
-    elif dias_atraso >= settings.DIAS_MORA_ADMINISTRATIVA:
-        recargo_pct = Decimal("0.05")
-    elif dias_atraso >= settings.DIAS_MORA_PREVENTIVA:
-        recargo_pct = Decimal("0.02")
-    else:
-        recargo_pct = Decimal("0")
-
-    recargo = (saldo_capital * recargo_pct).quantize(Decimal("0.01"))
-    return interes, recargo
+    return Decimal("0"), Decimal("0")
 
 
 def actualizar_estado_mora_factura(factura: Factura, hoy: date | None = None) -> Factura:

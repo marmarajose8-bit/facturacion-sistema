@@ -75,18 +75,35 @@ def registrar_pago(
     factura.interes_acumulado -= aplicado_interes
     factura.saldo_capital -= aplicado_capital
 
+    # Centavo de tolerancia: evita que un residuo de redondeo binario dado
+    # por Decimal(float) dispare comparaciones falsas al aplicar abonos.
+    CENTAVO = Decimal("0.01")
+
+    def _marcar_estado_cuota(c: Cuota) -> None:
+        """Recalcula el estado de una cuota según lo abonado hasta ahora:
+        pendiente (nada abonado), parcial (algo pero no todo) o pagada
+        (cubre el capital completo, con tolerancia de redondeo)."""
+        pagado = Decimal(c.monto_pagado).quantize(CENTAVO)
+        capital = Decimal(c.monto_capital).quantize(CENTAVO)
+        if pagado <= 0:
+            c.estado = EstadoFactura.pendiente
+        elif pagado >= capital:
+            c.estado = EstadoFactura.pagada
+        else:
+            c.estado = EstadoFactura.parcial
+
     cuota = None
     if payload.cuota_id:
         # El usuario/UI indicó explícitamente a qué cuota aplicar el abono.
         cuota = db.query(Cuota).get(payload.cuota_id)
         if cuota:
-            cuota.monto_pagado = Decimal(cuota.monto_pagado) + aplicado_capital
-            if cuota.monto_pagado >= cuota.monto_capital:
-                cuota.estado = EstadoFactura.pagada
+            cuota.monto_pagado = (Decimal(cuota.monto_pagado) + aplicado_capital).quantize(CENTAVO)
+            _marcar_estado_cuota(cuota)
     else:
         # Flujo normal (no se indicó cuota): reparte el capital aplicado
         # entre las cuotas pendientes en orden, para que "Cuota X de N"
         # avance automáticamente aunque no se seleccione una cuota puntual.
+        # Incluye las que ya tienen abono parcial, no solo las "pendiente".
         restante_capital = aplicado_capital
         cuotas_pendientes = sorted(
             (c for c in factura.cuotas if c.estado != EstadoFactura.pagada),
@@ -95,13 +112,14 @@ def registrar_pago(
         for c in cuotas_pendientes:
             if restante_capital <= 0:
                 break
-            falta_en_cuota = Decimal(c.monto_capital) - Decimal(c.monto_pagado)
+            falta_en_cuota = (
+                Decimal(c.monto_capital).quantize(CENTAVO) - Decimal(c.monto_pagado).quantize(CENTAVO)
+            )
             if falta_en_cuota <= 0:
                 continue
             aplicado_a_esta = min(restante_capital, falta_en_cuota)
-            c.monto_pagado = Decimal(c.monto_pagado) + aplicado_a_esta
-            if c.monto_pagado >= c.monto_capital:
-                c.estado = EstadoFactura.pagada
+            c.monto_pagado = (Decimal(c.monto_pagado) + aplicado_a_esta).quantize(CENTAVO)
+            _marcar_estado_cuota(c)
             restante_capital -= aplicado_a_esta
 
     if factura.saldo_capital <= 0:

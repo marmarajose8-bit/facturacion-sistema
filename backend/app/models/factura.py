@@ -65,8 +65,14 @@ class Factura(Base):
     interes_acumulado = Column(Numeric(14, 2), nullable=False, default=0)
     recargo_mora = Column(Numeric(14, 2), nullable=False, default=0)
 
-    estado = Column(Enum(EstadoFactura), default=EstadoFactura.pendiente, nullable=False)
-    estado_mora = Column(Enum(EstadoMora), default=EstadoMora.al_dia, nullable=False)
+    estado = Column(
+        Enum(EstadoFactura, name="estado_factura"),
+        default=EstadoFactura.pendiente, nullable=False,
+    )
+    estado_mora = Column(
+        Enum(EstadoMora, name="estado_mora"),
+        default=EstadoMora.al_dia, nullable=False,
+    )
     dias_atraso = Column(Integer, default=0)
 
     notas = Column(Text, nullable=True)
@@ -126,6 +132,13 @@ class Factura(Base):
         """Texto listo para mostrar en pantalla, ej. 'Cuota 2 de 6'."""
         return f"Cuota {self.cuota_actual} de {self.total_cuotas}"
 
+    @property
+    def editable_completo(self) -> bool:
+        """True si todavía no se ha registrado ningún pago: en ese caso es
+        seguro dejar editar montos, ítems, cuotas y frecuencia sin
+        descuadrar nada ya cobrado."""
+        return len(self.pagos) == 0
+
 
 class FacturaItem(Base):
     __tablename__ = "factura_items"
@@ -156,6 +169,9 @@ class Cuota(Base):
     monto_interes = Column(Numeric(14, 2), nullable=False, default=0)
     monto_recargo = Column(Numeric(14, 2), nullable=False, default=0)
     monto_pagado = Column(Numeric(14, 2), nullable=False, default=0)
-    estado = Column(Enum(EstadoFactura), default=EstadoFactura.pendiente, nullable=False)
+    estado = Column(
+        Enum(EstadoFactura, name="estado_factura"),
+        default=EstadoFactura.pendiente, nullable=False,
+    )
 
     factura = relationship("Factura", back_populates="cuotas")

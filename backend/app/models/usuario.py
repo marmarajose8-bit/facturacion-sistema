@@ -17,6 +17,6 @@ class Usuario(Base):
     nombre_completo = Column(String(150), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    rol = Column(Enum(RolUsuario), default=RolUsuario.cajero, nullable=False)
+    rol = Column(Enum(RolUsuario, name="rol_usuario"), default=RolUsuario.cajero, nullable=False)
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())

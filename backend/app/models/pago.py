@@ -26,8 +26,8 @@ class Pago(Base):
     cuota_id = Column(Integer, ForeignKey("cuotas.id"), nullable=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
 
-    tipo_pago = Column(Enum(TipoPago), default=TipoPago.abono, nullable=False)
-    metodo_pago = Column(Enum(MetodoPago), default=MetodoPago.efectivo, nullable=False)
+    tipo_pago = Column(Enum(TipoPago, name="tipo_pago"), default=TipoPago.abono, nullable=False)
+    metodo_pago = Column(Enum(MetodoPago, name="metodo_pago"), default=MetodoPago.efectivo, nullable=False)
 
     monto_capital = Column(Numeric(14, 2), nullable=False, default=0)
     monto_interes = Column(Numeric(14, 2), nullable=False, default=0)

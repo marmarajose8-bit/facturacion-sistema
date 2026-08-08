@@ -89,6 +89,7 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
         ["Interés del préstamo", _fmt(factura.interes_prestamo)],
         ["Descuento", f"-{_fmt(factura.descuento)}"],
         ["Total", _fmt(factura.total)],
+        ["Abonado", _fmt(factura.total_abonado)],
         ["Saldo pendiente", _fmt(factura.saldo_pendiente)],
     ]
     tabla_totales = Table(totales, colWidths=[13 * cm, 4 * cm])

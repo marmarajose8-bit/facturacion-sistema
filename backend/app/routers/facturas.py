@@ -373,13 +373,17 @@ def obtener_factura(factura_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{factura_id}/pdf")
 def descargar_pdf_factura(factura_id: int, db: Session = Depends(get_db)):
+    import os
     factura = db.query(Factura).options(
-        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.cliente)
+        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.cliente), joinedload(Factura.pagos)
     ).get(factura_id)
     if not factura:
         raise HTTPException(404, "Factura no encontrada")
 
-    pdf_bytes = generar_pdf_factura(factura, nombre_empresa=settings.EMPRESA_NOMBRE)
+    ruta_logo = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "static", "img", "logo-rym.jpeg")
+    ruta_logo = ruta_logo if os.path.exists(ruta_logo) else None
+
+    pdf_bytes = generar_pdf_factura(factura, nombre_empresa=settings.EMPRESA_NOMBRE, logo_path=ruta_logo)
     nombre_archivo = f"factura_{factura.numero_factura}.pdf"
     return Response(
         content=pdf_bytes,

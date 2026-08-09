@@ -110,6 +110,14 @@ class ReenganeElegibilidadOut(BaseModel):
     saldo_a_consolidar: float  # saldo_capital + interes_acumulado + recargo_mora actuales
 
 
+class PagoMiniOut(BaseModel):
+    """Solo lo necesario para el comprobante (fecha del último abono)."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    fecha_pago: datetime
+    monto_total: float
+
+
 class FacturaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -152,4 +160,5 @@ class FacturaOut(BaseModel):
 
     items: List[FacturaItemOut] = []
     cuotas: List[CuotaOut] = []
+    pagos: List[PagoMiniOut] = []
     creado_en: datetime

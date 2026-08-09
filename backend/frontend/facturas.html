@@ -860,14 +860,13 @@ async function descargarJPGFactura(facturaId) {
   const interes = Number(f.interes_prestamo || 0);
   const capital = Number(f.total || 0) - interes;
 
-  const pagos = (f.pagos || []).slice().sort((a, b) => new Date(b.fecha_pago) - new Date(a.fecha_pago));
   // Fecha de Pago = fecha de vencimiento vigente de la cuota que se está
-  // cobrando/registrando (ej. 22 ago). Vence el (pie de página) = fecha real
-  // del último abono en la base de datos (ej. 8 ago). Si todavía no hay
-  // ningún pago registrado, el pie repite la vencimiento vigente en vez de
-  // inventar la fecha de hoy.
+  // cobrando/registrando.
   const fechaPago = fmt.date(f.fecha_vencimiento_vigente);
-  const fechaVenceFooter = pagos.length ? fmt.date(pagos[0].fecha_pago) : fmt.date(f.fecha_vencimiento_vigente);
+  // Pie de página = momento exacto en que se genera este comprobante (hoy),
+  // siempre correcto porque se calcula al vuelo, sin depender de ningún
+  // dato guardado en la base de datos.
+  const fechaGenerado = fmt.fechaLarga(new Date());
 
   const recibo = document.createElement("div");
   recibo.style.cssText = "position:fixed; left:-9999px; top:0; width:380px; background:#ffffff; color:#111827; font-family:system-ui,sans-serif; padding:24px; border-radius:12px;";
@@ -897,7 +896,7 @@ async function descargarJPGFactura(facturaId) {
     <div style="border-top:1px solid #111827; margin:12px 0;"></div>
     <div style="display:flex; justify-content:space-between; font-size:16px;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
     <div style="border-top:1px dashed #d1d5db; margin:12px 0;"></div>
-    <div style="text-align:center; font-size:11px; color:#9ca3af;">Vence el ${fechaVenceFooter}</div>
+    <div style="text-align:center; font-size:11px; color:#9ca3af;">Generado el ${fechaGenerado}</div>
     <div style="border-top:1px solid #111827; margin-top:10px;"></div>
   `;
   document.body.appendChild(recibo);

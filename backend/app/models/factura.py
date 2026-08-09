@@ -121,11 +121,12 @@ class Factura(Base):
 
     @property
     def cuota_actual(self) -> int:
-        """Cuenta simple y directa: el número de cuota avanza exactamente
-        UNO por cada pago que se registre, sin importar el monto que cubra.
-        - Sin ningún pago todavía: 0.
-        - Primer pago registrado: 1. Segundo pago: 2. Tercer pago: 3. Y así,
-          uno por uno, hasta el total de cuotas.
+        """Cuenta cuántas cuotas del plan ya quedaron completamente
+        cerradas (estado 'pagada'), sin importar en cuántos pagos se hizo:
+        - Sin ninguna cuota cerrada todavía: 0.
+        - Un pago que cierra 1 cuota: avanza a 1. Un pago único que alcanza
+          para cerrar 2 cuotas de una vez (ej. quincenal doble, paga el 15
+          y el 30 juntos): avanza directo de 0 a 2, en el mismo pago.
         - Si la factura ya quedó completamente pagada, se topa en el total
           de cuotas (nunca pasa de ahí, aunque haya habido más pagos que
           cuotas por algún abono de más).
@@ -139,7 +140,7 @@ class Factura(Base):
             return max(0, min(self.cuota_manual_override, self.total_cuotas))
         if self.estado == EstadoFactura.pagada:
             return self.total_cuotas
-        return min(len(self.pagos), self.total_cuotas)
+        return min(self.cuotas_pagadas, self.total_cuotas)
 
     @property
     def texto_cuota(self) -> str:

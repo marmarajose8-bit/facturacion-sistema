@@ -1,4 +1,5 @@
 from datetime import date
+import calendar
 from decimal import Decimal
 from typing import List, Optional
 
@@ -25,12 +26,33 @@ from app.services.reenganche import calcular_elegibilidad, ejecutar_reenganche
 router = APIRouter(prefix="/api/facturas", tags=["Facturación"], dependencies=[Depends(decode_token)])
 
 
+def _siguiente_quincena(actual: date) -> date:
+    """Avanza estrictamente al siguiente día 15 o 30 del calendario (nunca
+    31; en meses con menos de 30 días —febrero— usa el último día real del
+    mes en vez del 30). Así 'quincenal' respeta los días 15 y 30 reales,
+    no un salto flotante de +15 días desde la fecha base."""
+    ultimo_dia_mes = calendar.monthrange(actual.year, actual.month)[1]
+    dia_fin_quincena = min(30, ultimo_dia_mes)
+    if actual.day < dia_fin_quincena:
+        return actual.replace(day=dia_fin_quincena)
+    siguiente_mes = actual.replace(day=1) + relativedelta(months=1)
+    return siguiente_mes.replace(day=15)
+
+
 def _siguiente_vencimiento(base: date, numero: int, frecuencia: str) -> date:
-    """Cada cuánto cae la próxima cuota según la frecuencia de pago."""
+    """Cada cuánto cae la próxima cuota según la frecuencia de pago.
+    La cuota 1 siempre cae en 'base' (la fecha elegida al crear la factura);
+    las siguientes se calculan a partir de ahí paso a paso, sin arrastrar
+    error acumulado."""
+    if numero <= 1:
+        return base
     if frecuencia == "semanal":
         return base + relativedelta(weeks=numero - 1)
     if frecuencia == "quincenal":
-        return base + relativedelta(days=15 * (numero - 1))
+        actual = base
+        for _ in range(numero - 1):
+            actual = _siguiente_quincena(actual)
+        return actual
     return base + relativedelta(months=numero - 1)
 
 

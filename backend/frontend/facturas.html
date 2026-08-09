@@ -861,7 +861,11 @@ async function descargarJPGFactura(facturaId) {
   const capital = Number(f.total || 0) - interes;
 
   const pagos = (f.pagos || []).slice().sort((a, b) => new Date(b.fecha_pago) - new Date(a.fecha_pago));
-  const fechaPago = pagos.length ? fmt.date(pagos[0].fecha_pago) : fmt.date(new Date());
+  // Fecha de Pago = fecha real del último abono registrado. Si todavía no
+  // hay ningún pago (ej. se está imprimiendo el comprobante de desembolso),
+  // se usa la fecha de vencimiento vigente de la cuota — nunca la fecha de
+  // hoy, para no mostrar un dato que no corresponde al movimiento real.
+  const fechaPago = pagos.length ? fmt.date(pagos[0].fecha_pago) : fmt.date(f.fecha_vencimiento_vigente);
 
   const recibo = document.createElement("div");
   recibo.style.cssText = "position:fixed; left:-9999px; top:0; width:380px; background:#ffffff; color:#111827; font-family:system-ui,sans-serif; padding:24px; border-radius:12px;";

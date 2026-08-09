@@ -36,19 +36,24 @@ const fmt = {
   money: (n) => new Intl.NumberFormat("es-DO", { style: "currency", currency: "DOP" }).format(n || 0),
   date: (d) => {
     if (!d) return "";
-    // Acepta tanto un string "YYYY-MM-DD" (lo que manda el backend) como un
-    // objeto Date ya construido (ej. new Date()) — antes solo aceptaba el
-    // string, así que pasarle un Date directo producía "Invalid Date".
+    // Acepta tanto un string como un objeto Date ya construido.
     let dateObj;
     if (d instanceof Date) {
       dateObj = d;
-    } else {
-      // Construye la fecha con los componentes locales en vez de dejar que
-      // "new Date(...)" la interprete como medianoche UTC — eso es lo que
-      // causaba que se mostrara un dia antes en la hora de RD (UTC-4).
-      const soloFecha = String(d).split("T")[0];
-      const [y, m, day] = soloFecha.split("-").map(Number);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(String(d))) {
+      // Fecha PURA sin hora (ej. fecha_vencimiento: columna Date de Postgres,
+      // no tiene zona horaria). Se arma con los componentes locales tal cual
+      // vienen, sin ninguna conversión — eso es lo que evita que se corra un
+      // día en la hora de RD (UTC-4) para este tipo de campo.
+      const [y, m, day] = String(d).split("-").map(Number);
       dateObj = new Date(y, m - 1, day);
+    } else {
+      // Timestamp COMPLETO con hora y zona horaria (ej. fecha_pago: columna
+      // TIMESTAMPTZ, se guarda en UTC). Aquí SÍ hay que dejar que el
+      // navegador convierta de UTC a la hora local real antes de sacar el
+      // día calendario — cortar en la "T" como arriba tomaría el día en UTC,
+      // que puede ser el día siguiente para un pago hecho de noche en RD.
+      dateObj = new Date(d);
     }
     if (isNaN(dateObj.getTime())) dateObj = new Date(); // ultima salvaguarda: nunca mostrar "Invalid Date"
     return dateObj.toLocaleDateString("es-DO", { year: "numeric", month: "short", day: "numeric" });

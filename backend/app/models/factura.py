@@ -54,6 +54,12 @@ class Factura(Base):
     # entre 5% y 30% según el plazo (semanal/quincenal/mensual).
     tasa_interes_prestamo = Column(Numeric(5, 2), nullable=True)
     interes_prestamo = Column(Numeric(14, 2), nullable=False, default=0)
+    # Forzar a mano el número de cuota mostrado (ej. se pagó por fuera del
+    # sistema y hay que ajustar el contador). NULL = modo automático de
+    # siempre (1 pago registrado = avanza 1 cuota). Con valor puesto,
+    # panel, PDF, JPG y WhatsApp lo respetan de inmediato porque todos
+    # leen de la misma propiedad cuota_actual, sin excepción.
+    cuota_manual_override = Column(Integer, nullable=True)
     total = Column(Numeric(14, 2), nullable=False, default=0)
 
     # Saldo vivo (capital + intereses/recargos - abonos)
@@ -115,25 +121,25 @@ class Factura(Base):
 
     @property
     def cuota_actual(self) -> int:
-        """Cuántas cuotas van 'alcanzadas' por el dinero abonado — cuenta
-        estricta y secuencial, sin fracciones:
-        - 0 si todavía no se ha aplicado ningún abono.
-        - Suma las cuotas ya completadas al 100%, MÁS 1 si la cuota
-          siguiente ya tiene algo abonado (aunque sea parcial). Así, en el
-          instante que entra el primer peso a una cuota nueva, el número
-          salta de una vez — pero mientras una cuota recién completada no
-          tenga nada abonado todavía en la próxima, el número se queda
-          quieto en la que se acaba de terminar (no se adelanta de más).
-        - Si toda la factura ya está pagada, se queda en el total de cuotas.
-        """
-        if not self.cuotas:
-            return 1 if self.total_abonado > 0 else 0
+        """Cuenta simple y directa: el número de cuota avanza exactamente
+        UNO por cada pago que se registre, sin importar el monto que cubra.
+        - Sin ningún pago todavía: 0.
+        - Primer pago registrado: 1. Segundo pago: 2. Tercer pago: 3. Y así,
+          uno por uno, hasta el total de cuotas.
+        - Si la factura ya quedó completamente pagada, se topa en el total
+          de cuotas (nunca pasa de ahí, aunque haya habido más pagos que
+          cuotas por algún abono de más).
+
+        Si cuota_manual_override tiene un valor (se pagó por fuera del
+        sistema y se ajustó a mano desde 'Editar cuota'), ese número manda
+        por encima del automático — pero siempre topado entre 0 y el total
+        de cuotas, para que nunca se pueda mostrar algo como 'Cuota 20 de
+        13' o un número negativo por error de dedo."""
+        if self.cuota_manual_override is not None:
+            return max(0, min(self.cuota_manual_override, self.total_cuotas))
         if self.estado == EstadoFactura.pagada:
             return self.total_cuotas
-        completadas = self.cuotas_pagadas
-        siguiente = self.cuota_pendiente_actual
-        en_progreso = 1 if siguiente and Decimal(siguiente.monto_pagado) > 0 else 0
-        return completadas + en_progreso
+        return min(len(self.pagos), self.total_cuotas)
 
     @property
     def texto_cuota(self) -> str:

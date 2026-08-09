@@ -264,7 +264,34 @@
   </div>
 </div>
 
-<!-- Modal reenganche (ampliación de préstamo) -->
+<!-- Modal editar cuota (forzar a mano el numero mostrado) -->
+<div id="modalCuotaManual" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
+  <div class="panel p-4 sm:p-6 w-full max-w-md">
+    <h2 class="text-lg font-semibold mb-1">Editar cuota</h2>
+    <p class="text-sm mb-4" style="color:var(--text-dim)">
+      Fuerza el número de cuota que se muestra (panel, PDF, JPG y WhatsApp), por ejemplo si el cliente
+      pagó por fuera del sistema. Esto no toca los pagos ni los montos registrados, solo el número mostrado.
+    </p>
+    <form id="formCuotaManual" class="space-y-3">
+      <input type="hidden" id="cuota_manual_factura_id" />
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Número de cuota (<span id="cuota_manual_total"></span>)</label>
+        <div class="grid grid-cols-12 gap-2 mt-1">
+          <input type="number" id="cuota_manual_valor" min="0" class="col-span-3" required />
+        </div>
+      </div>
+      <p id="cuota_manual_actual_info" class="text-xs" style="color:var(--text-dim)"></p>
+      <div class="flex justify-between items-center gap-3 pt-2">
+        <button type="button" class="text-xs" style="color:var(--danger-2)" onclick="quitarCuotaManual()">Quitar ajuste (volver a automático)</button>
+        <div class="flex gap-3">
+          <button type="button" class="btn-ghost" onclick="cerrarModalCuotaManual()">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="modalReenganche" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
   <div class="panel p-4 sm:p-6 w-full max-w-md">
     <h2 class="text-lg font-semibold mb-2">Reenganchar préstamo</h2>
@@ -385,6 +412,43 @@ function abrirModalPago(facturaId) {
   document.getElementById("modalPago").classList.add("flex");
 }
 function cerrarModalPago() { document.getElementById("modalPago").classList.add("hidden"); document.getElementById("modalPago").classList.remove("flex"); }
+
+function abrirModalCuotaManual(facturaId) {
+  const f = facturasPorId[facturaId];
+  if (!f) { toast("No encontré esa factura, refresca la página", "error"); return; }
+  document.getElementById("cuota_manual_factura_id").value = facturaId;
+  document.getElementById("cuota_manual_total").textContent = `de ${f.total_cuotas}`;
+  document.getElementById("cuota_manual_valor").max = f.total_cuotas;
+  document.getElementById("cuota_manual_valor").value = f.cuota_actual;
+  document.getElementById("cuota_manual_actual_info").textContent = f.cuota_manual_override !== null
+    ? `Ahora mismo está forzada a mano en "${f.texto_cuota}". El automático (por pagos registrados) sería otro número.`
+    : `Ahora mismo está en automático: "${f.texto_cuota}" (según los pagos registrados).`;
+  document.getElementById("modalCuotaManual").classList.remove("hidden");
+  document.getElementById("modalCuotaManual").classList.add("flex");
+}
+function cerrarModalCuotaManual() { document.getElementById("modalCuotaManual").classList.add("hidden"); document.getElementById("modalCuotaManual").classList.remove("flex"); }
+
+async function quitarCuotaManual() {
+  const facturaId = document.getElementById("cuota_manual_factura_id").value;
+  try {
+    await api(`/api/facturas/${facturaId}/cuota-manual`, { method: "PATCH", body: { cuota: null } });
+    toast("Vuelto al conteo automático de cuotas");
+    cerrarModalCuotaManual();
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
+}
+
+document.getElementById("formCuotaManual").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const facturaId = document.getElementById("cuota_manual_factura_id").value;
+  const cuota = parseInt(document.getElementById("cuota_manual_valor").value);
+  try {
+    await api(`/api/facturas/${facturaId}/cuota-manual`, { method: "PATCH", body: { cuota } });
+    toast("Número de cuota actualizado");
+    cerrarModalCuotaManual();
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
+});
 
 async function abrirModalReenganche(facturaId) {
   document.getElementById("reenganche_factura_id").value = facturaId;
@@ -774,6 +838,7 @@ async function cargarFacturas() {
         <td data-label="Mora"><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
         <td class="whitespace-nowrap">
           <div class="flex items-center gap-3">
+            ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--text-dim)" title="${f.cuota_manual_override !== null ? "Cuota ajustada a mano — clic para cambiar" : "Forzar el número de cuota a mano"}" onclick="abrirModalCuotaManual(${f.id})">Editar cuota${f.cuota_manual_override !== null ? " *" : ""}</button>` : ""}
             ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}
             ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:#f0a500" onclick="abrirModalReenganche(${f.id})">Reenganchar</button>` : ""}
             ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--text-dim)" onclick="abrirModalFacturaEdicion(${f.id})">Editar</button>` : ""}

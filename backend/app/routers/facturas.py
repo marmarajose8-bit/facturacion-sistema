@@ -14,7 +14,8 @@ from app.models.cliente import Cliente
 from app.models.factura import Factura, FacturaItem, Cuota, EstadoFactura
 from app.models.pago import Pago, Recibo
 from app.schemas.factura import (
-    FacturaCreate, FacturaUpdate, FacturaOut, FacturaItemCreate, ReenganeCreate, ReenganeElegibilidadOut,
+    FacturaCreate, FacturaUpdate, FacturaOut, FacturaItemCreate, CuotaManualUpdate,
+    ReenganeCreate, ReenganeElegibilidadOut,
 )
 from app.services.numeracion import generar_numero_factura
 from app.services.mora import actualizar_estado_mora_factura
@@ -282,6 +283,37 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
             factura.estado = EstadoFactura.parcial
 
         actualizar_estado_mora_factura(factura)
+
+    db.commit()
+    db.refresh(factura)
+    return factura
+
+
+@router.patch("/{factura_id}/cuota-manual", response_model=FacturaOut)
+def ajustar_cuota_manual(factura_id: int, payload: CuotaManualUpdate, db: Session = Depends(get_db)):
+    """Forzar (o quitar) el número de cuota mostrado a mano, para cuando un
+    cliente pagó por fuera del sistema y hay que ajustar el contador sin
+    tocar los pagos reales ni los montos. No borra ni recalcula nada de la
+    factura — solo cambia qué número se MUESTRA en panel, PDF, JPG y
+    WhatsApp (los tres leen del mismo campo, así que quedan sincronizados
+    de inmediato). El flujo automático (1 pago = avanza 1 cuota) sigue
+    funcionando exactamente igual por debajo; payload.cuota=null lo
+    reactiva en cualquier momento."""
+    factura = db.query(Factura).options(
+        joinedload(Factura.items), joinedload(Factura.cuotas), joinedload(Factura.pagos)
+    ).get(factura_id)
+    if not factura:
+        raise HTTPException(404, "Factura no encontrada")
+    if factura.estado == EstadoFactura.anulada:
+        raise HTTPException(400, "No se puede editar la cuota de una factura anulada")
+
+    if payload.cuota is not None:
+        if payload.cuota < 0 or payload.cuota > factura.total_cuotas:
+            raise HTTPException(
+                400,
+                f"El número de cuota debe estar entre 0 y {factura.total_cuotas} (el total de cuotas de esta factura)",
+            )
+    factura.cuota_manual_override = payload.cuota
 
     db.commit()
     db.refresh(factura)

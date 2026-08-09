@@ -53,6 +53,12 @@ class FacturaUpdate(BaseModel):
     items: Optional[List[FacturaItemCreate]] = None
 
 
+class CuotaManualUpdate(BaseModel):
+    """Forzar a mano el número de cuota mostrado (panel, PDF, JPG y
+    WhatsApp). cuota: null vuelve al modo automático de siempre."""
+    cuota: Optional[int] = None
+
+
 class CuotaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -137,6 +143,7 @@ class FacturaOut(BaseModel):
     cuotas_pagadas: int           # cuántas cuotas ya saldó por completo
     cuota_actual: int             # en qué número de cuota va
     texto_cuota: str              # ej. "Cuota 2 de 6", listo para mostrar
+    cuota_manual_override: Optional[int] = None  # si no es None, alguien lo forzó a mano
 
     # True si la factura todavía no tiene ningún pago: el frontend usa esto
     # para decidir si deja editar montos/ítems/cuotas o solo lo básico

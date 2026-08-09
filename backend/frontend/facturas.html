@@ -208,7 +208,9 @@
       </div>
       <div id="bloqueTasaInteres" class="hidden">
         <label class="text-xs" style="color:var(--text-dim)">% de interés</label>
-        <input type="number" id="tasa_interes_prestamo" step="0.01" min="0" placeholder="ej: 15" class="w-full mt-1" oninput="actualizarIndicadorPorcentaje()" />
+        <div class="grid grid-cols-12 gap-2 mt-1">
+          <input type="number" id="tasa_interes_prestamo" step="0.01" min="0" placeholder="ej: 15" class="col-span-3" oninput="actualizarIndicadorPorcentaje()" />
+        </div>
         <p id="indicadorPorcentaje" class="text-xs mt-1" style="color:var(--text-dim)"></p>
       </div>
 

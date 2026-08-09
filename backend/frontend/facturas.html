@@ -75,7 +75,7 @@
       <table class="ledger w-full" style="min-width:680px;">
         <thead>
           <tr>
-            <th>No. Factura</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Cuota</th><th>Estado</th><th>Mora</th><th></th>
+            <th>No. Factura</th><th>Cliente</th><th>Fecha de Pago</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Cuota</th><th>Estado</th><th>Mora</th><th></th>
           </tr>
         </thead>
         <tbody id="tablaFacturas"></tbody>
@@ -179,7 +179,7 @@
           <select id="cliente_id" required class="w-full mt-1"></select>
         </div>
         <div>
-          <label class="text-xs" style="color:var(--text-dim)">Fecha de vencimiento</label>
+          <label class="text-xs" style="color:var(--text-dim)">Fecha de Pago</label>
           <input type="date" id="fecha_vencimiento" required class="w-full mt-1" />
         </div>
       </div>
@@ -202,16 +202,29 @@
         <input id="factura_notas" class="w-full mt-1" placeholder="Ej: acuerdo especial, referencia, garantía..." />
       </div>
 
-      <div class="flex items-center gap-2 pt-1">
-        <input type="checkbox" id="toggleTasaInteres" onchange="toggleSistemaPorcentaje(this.checked)" />
-        <label for="toggleTasaInteres" class="text-xs" style="color:var(--text-dim)">Aplicar % de interés al préstamo</label>
-      </div>
-      <div id="bloqueTasaInteres" class="hidden">
-        <label class="text-xs" style="color:var(--text-dim)">% de interés</label>
-        <div class="grid grid-cols-12 gap-2 mt-1">
-          <input type="number" id="tasa_interes_prestamo" step="0.01" min="0" placeholder="ej: 15" class="col-span-3" oninput="actualizarIndicadorPorcentaje()" />
+      <div class="pct-card" id="pctCard">
+        <div class="pct-card-head">
+          <div class="pct-card-title">
+            <span class="pct-icon">%</span>
+            <div class="min-w-0">
+              <p class="pct-card-label">Interés por porcentaje</p>
+              <p class="pct-card-sub">Cargo único sobre el monto prestado (no es amortización)</p>
+            </div>
+          </div>
+          <label class="pct-switch" title="Activar o desactivar el interés por porcentaje">
+            <input type="checkbox" id="pct_toggle" onchange="togglePorcentaje()" />
+            <span class="pct-slider"></span>
+          </label>
         </div>
-        <p id="indicadorPorcentaje" class="text-xs mt-1" style="color:var(--text-dim)"></p>
+        <div id="pctRateWrap" class="pct-rate-wrap hidden">
+          <label class="text-xs" style="color:var(--text-dim)">Tasa a aplicar</label>
+          <div class="pct-input-group">
+            <input type="number" step="0.01" min="0" max="999.99" id="tasa_interes_prestamo"
+                   class="pct-input" placeholder="0.00" oninput="actualizarPreviewInteres()" />
+            <span class="pct-suffix">%</span>
+          </div>
+          <p class="pct-preview" id="pctPreview">Se sumará <b>RD$0.00</b> de interés sobre RD$0.00 de monto.</p>
+        </div>
       </div>
 
       <div class="pt-2">
@@ -222,7 +235,7 @@
             <button type="button" id="btnAgregarItem" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar otro concepto</button>
           </div>
         </div>
-        <div id="itemsContainer" class="space-y-2" oninput="actualizarIndicadorPorcentaje()"></div>
+        <div id="itemsContainer" class="space-y-2"></div>
       </div>
 
       <div class="flex justify-end gap-3 pt-4">
@@ -264,34 +277,7 @@
   </div>
 </div>
 
-<!-- Modal editar cuota (forzar a mano el numero mostrado) -->
-<div id="modalCuotaManual" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
-  <div class="panel p-4 sm:p-6 w-full max-w-md">
-    <h2 class="text-lg font-semibold mb-1">Editar cuota</h2>
-    <p class="text-sm mb-4" style="color:var(--text-dim)">
-      Fuerza el número de cuota que se muestra (panel, PDF, JPG y WhatsApp), por ejemplo si el cliente
-      pagó por fuera del sistema. Esto no toca los pagos ni los montos registrados, solo el número mostrado.
-    </p>
-    <form id="formCuotaManual" class="space-y-3">
-      <input type="hidden" id="cuota_manual_factura_id" />
-      <div>
-        <label class="text-xs" style="color:var(--text-dim)">Número de cuota (<span id="cuota_manual_total"></span>)</label>
-        <div class="grid grid-cols-12 gap-2 mt-1">
-          <input type="number" id="cuota_manual_valor" min="0" class="col-span-3" required />
-        </div>
-      </div>
-      <p id="cuota_manual_actual_info" class="text-xs" style="color:var(--text-dim)"></p>
-      <div class="flex justify-between items-center gap-3 pt-2">
-        <button type="button" class="text-xs" style="color:var(--danger-2)" onclick="quitarCuotaManual()">Quitar ajuste (volver a automático)</button>
-        <div class="flex gap-3">
-          <button type="button" class="btn-ghost" onclick="cerrarModalCuotaManual()">Cancelar</button>
-          <button type="submit" class="btn-primary">Guardar</button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-
+<!-- Modal reenganche (ampliación de préstamo) -->
 <div id="modalReenganche" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
   <div class="panel p-4 sm:p-6 w-full max-w-md">
     <h2 class="text-lg font-semibold mb-2">Reenganchar préstamo</h2>
@@ -304,7 +290,7 @@
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label class="text-xs" style="color:var(--text-dim)">Nueva fecha de vencimiento</label>
+          <label class="text-xs" style="color:var(--text-dim)">Nueva fecha de pago</label>
           <input type="date" id="reenganche_fecha_vencimiento" required class="w-full mt-1" />
         </div>
         <div>
@@ -342,14 +328,10 @@ function abrirModalFactura() {
   document.getElementById("facturaEditAviso").classList.add("hidden");
   document.getElementById("cliente_id").disabled = false;
   document.getElementById("numero_cuotas").disabled = false;
-  document.getElementById("tasa_interes_prestamo").disabled = false;
   document.getElementById("btnAgregarItem").classList.remove("hidden");
   document.querySelectorAll(".item-row .item-desc, .item-row .item-precio, .item-row .item-cant, .item-row .item-imp")
     .forEach(el => el.disabled = false);
   document.getElementById("formFactura").reset();
-  document.getElementById("toggleTasaInteres").checked = false;
-  document.getElementById("bloqueTasaInteres").classList.add("hidden");
-  document.getElementById("indicadorPorcentaje").textContent = "";
   document.getElementById("modalFactura").classList.remove("hidden");
   document.getElementById("modalFactura").classList.add("flex");
   cargarClientesSelect();
@@ -358,6 +340,40 @@ function abrirModalFactura() {
   document.getElementById("itemsContainer").innerHTML = "";
   itemCount = 0;
   agregarItem();
+  // El interés por porcentaje arranca desactivado en una factura nueva.
+  document.getElementById("pct_toggle").checked = false;
+  document.getElementById("pct_toggle").disabled = false;
+  togglePorcentaje();
+}
+
+/* ================== Interés por porcentaje: switch + tasa ================== */
+function togglePorcentaje() {
+  const activo = document.getElementById("pct_toggle").checked;
+  const rateWrap = document.getElementById("pctRateWrap");
+  const tasaInput = document.getElementById("tasa_interes_prestamo");
+  document.getElementById("pctCard").classList.toggle("is-active", activo);
+  rateWrap.classList.toggle("hidden", !activo);
+  if (activo) {
+    setTimeout(() => tasaInput.focus(), 50);
+    actualizarPreviewInteres();
+  } else {
+    // Al desactivar, se limpia el valor para que se envíe null al backend
+    // y la factura no lleve ningún interés por porcentaje.
+    tasaInput.value = "";
+  }
+}
+
+function actualizarPreviewInteres() {
+  const preview = document.getElementById("pctPreview");
+  if (!preview) return;
+  const tasa = parseFloat(document.getElementById("tasa_interes_prestamo").value) || 0;
+  const montoBase = Array.from(document.querySelectorAll("#itemsContainer .item-row")).reduce((sum, row) => {
+    const precio = parseFloat(row.querySelector(".item-precio").value) || 0;
+    const cant = parseFloat(row.querySelector(".item-cant")?.value) || 1;
+    return sum + precio * cant;
+  }, 0);
+  const interes = montoBase * tasa / 100;
+  preview.innerHTML = `Se sumará <b>${fmt.money(interes)}</b> de interés sobre ${fmt.money(montoBase)} de monto.`;
 }
 
 async function abrirModalFacturaEdicion(facturaId) {
@@ -373,10 +389,6 @@ async function abrirModalFacturaEdicion(facturaId) {
   document.getElementById("fecha_vencimiento").value = f.fecha_vencimiento;
   document.getElementById("frecuencia_pago").value = f.frecuencia_pago;
   document.getElementById("numero_cuotas").value = f.total_cuotas;
-  document.getElementById("tasa_interes_prestamo").value = f.tasa_interes_prestamo || "";
-  const tieneTasa = !!f.tasa_interes_prestamo;
-  document.getElementById("toggleTasaInteres").checked = tieneTasa;
-  document.getElementById("bloqueTasaInteres").classList.toggle("hidden", !tieneTasa);
   document.getElementById("factura_notas").value = f.notas || "";
 
   document.getElementById("itemsContainer").innerHTML = "";
@@ -390,7 +402,11 @@ async function abrirModalFacturaEdicion(facturaId) {
     ultima.querySelector(".item-cant").value = it.cantidad;
     ultima.querySelector(".item-imp").value = it.porcentaje_impuesto;
   });
-  actualizarIndicadorPorcentaje();
+
+  const tieneTasa = !!f.tasa_interes_prestamo;
+  document.getElementById("pct_toggle").checked = tieneTasa;
+  if (tieneTasa) document.getElementById("tasa_interes_prestamo").value = f.tasa_interes_prestamo;
+  togglePorcentaje(); // muestra/oculta la tarjeta y recalcula el preview con los ítems ya cargados
 
   const tienePagos = !f.editable_completo;
   document.getElementById("facturaEditAviso").classList.toggle("hidden", !tienePagos);
@@ -412,43 +428,6 @@ function abrirModalPago(facturaId) {
   document.getElementById("modalPago").classList.add("flex");
 }
 function cerrarModalPago() { document.getElementById("modalPago").classList.add("hidden"); document.getElementById("modalPago").classList.remove("flex"); }
-
-function abrirModalCuotaManual(facturaId) {
-  const f = facturasPorId[facturaId];
-  if (!f) { toast("No encontré esa factura, refresca la página", "error"); return; }
-  document.getElementById("cuota_manual_factura_id").value = facturaId;
-  document.getElementById("cuota_manual_total").textContent = `de ${f.total_cuotas}`;
-  document.getElementById("cuota_manual_valor").max = f.total_cuotas;
-  document.getElementById("cuota_manual_valor").value = f.cuota_actual;
-  document.getElementById("cuota_manual_actual_info").textContent = f.cuota_manual_override !== null
-    ? `Ahora mismo está forzada a mano en "${f.texto_cuota}". El automático (por pagos registrados) sería otro número.`
-    : `Ahora mismo está en automático: "${f.texto_cuota}" (según los pagos registrados).`;
-  document.getElementById("modalCuotaManual").classList.remove("hidden");
-  document.getElementById("modalCuotaManual").classList.add("flex");
-}
-function cerrarModalCuotaManual() { document.getElementById("modalCuotaManual").classList.add("hidden"); document.getElementById("modalCuotaManual").classList.remove("flex"); }
-
-async function quitarCuotaManual() {
-  const facturaId = document.getElementById("cuota_manual_factura_id").value;
-  try {
-    await api(`/api/facturas/${facturaId}/cuota-manual`, { method: "PATCH", body: { cuota: null } });
-    toast("Vuelto al conteo automático de cuotas");
-    cerrarModalCuotaManual();
-    cargarFacturas();
-  } catch (err) { toast(err.message, "error"); }
-}
-
-document.getElementById("formCuotaManual").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const facturaId = document.getElementById("cuota_manual_factura_id").value;
-  const cuota = parseInt(document.getElementById("cuota_manual_valor").value);
-  try {
-    await api(`/api/facturas/${facturaId}/cuota-manual`, { method: "PATCH", body: { cuota } });
-    toast("Número de cuota actualizado");
-    cerrarModalCuotaManual();
-    cargarFacturas();
-  } catch (err) { toast(err.message, "error"); }
-});
 
 async function abrirModalReenganche(facturaId) {
   document.getElementById("reenganche_factura_id").value = facturaId;
@@ -514,13 +493,13 @@ function agregarItem() {
   div.innerHTML = `
     <div class="grid grid-cols-12 gap-2 items-center">
       <input class="col-span-8 item-desc" placeholder="Concepto (opcional, ej: Préstamo personal)" />
-      <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Ej: 10000" required />
-      <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.closest('.item-row').remove()">✕</button>
+      <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Ej: 10000" required oninput="actualizarPreviewInteres()" />
+      <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.closest('.item-row').remove(); actualizarPreviewInteres();">✕</button>
     </div>
     <div class="item-avanzado hidden grid grid-cols-2 gap-2 items-center mt-2">
       <div>
         <label class="text-xs" style="color:var(--text-dim)">Cantidad</label>
-        <input type="number" step="0.01" class="w-full mt-1 item-cant" value="1" />
+        <input type="number" step="0.01" class="w-full mt-1 item-cant" value="1" oninput="actualizarPreviewInteres()" />
       </div>
       <div>
         <label class="text-xs" style="color:var(--text-dim)">% impuesto</label>
@@ -533,41 +512,6 @@ function agregarItem() {
 
 function toggleAvanzado() {
   document.querySelectorAll(".item-avanzado").forEach(el => el.classList.toggle("hidden"));
-}
-
-// --- Sistema de % de interés: modular, no afecta el envío si está apagado ---
-function toggleSistemaPorcentaje(activado) {
-  const bloque = document.getElementById("bloqueTasaInteres");
-  bloque.classList.toggle("hidden", !activado);
-  if (!activado) {
-    // Al apagar el interruptor, se limpia el valor para que el cálculo
-    // manual principal (montos de los ítems) quede intacto, sin interés
-    // "fantasma" colándose en el envío.
-    document.getElementById("tasa_interes_prestamo").value = "";
-    document.getElementById("indicadorPorcentaje").textContent = "";
-  } else {
-    actualizarIndicadorPorcentaje();
-  }
-}
-
-function actualizarIndicadorPorcentaje() {
-  const indicador = document.getElementById("indicadorPorcentaje");
-  if (!indicador) return;
-  const tasa = parseFloat(document.getElementById("tasa_interes_prestamo").value || 0);
-  const montoBase = Array.from(document.querySelectorAll("#itemsContainer .item-row")).reduce((acc, row) => {
-    const cant = parseFloat(row.querySelector(".item-cant").value || 0);
-    const precio = parseFloat(row.querySelector(".item-precio").value || 0);
-    return acc + (cant * precio);
-  }, 0);
-  indicador.innerHTML = renderizarIndicadorPorcentaje(montoBase, tasa);
-}
-
-// Visualización discreta del porcentaje mientras se llena la factura
-// (el cálculo real y definitivo del interés lo hace el backend al emitir).
-function renderizarIndicadorPorcentaje(montoBase, tasa) {
-  if (!tasa || tasa <= 0 || !montoBase) return "";
-  const calculoInteres = montoBase * (tasa / 100);
-  return `Incluye ${tasa}% de interés: ${fmt.money(calculoInteres)}`;
 }
 
 let clientesCache = [];
@@ -829,8 +773,11 @@ async function cargarFacturas() {
       <tr>
         <td class="font-mono-ledger" data-label="No. Factura">${f.numero_factura}</td>
         <td data-label="Cliente">${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}${f.notas ? ` <span title="${f.notas.replace(/"/g, "&quot;")}" style="cursor:help; color:var(--text-dim)">📝</span>` : ""}</td>
-        <td data-label="Vencimiento">${fmt.date(f.fecha_vencimiento_vigente)}</td>
-        <td class="font-mono-ledger" data-label="Total">${fmt.money(f.total)}</td>
+        <td data-label="Fecha de Pago">${fmt.date(f.fecha_vencimiento_vigente)}</td>
+        <td class="font-mono-ledger" data-label="Total">
+          <div>${fmt.money(f.total)}</div>
+          ${Number(f.interes_prestamo) > 0 ? `<div class="text-xs" style="color:var(--text-dim); font-weight:400;">Cap ${fmt.money(f.subtotal)} + Int ${fmt.money(f.interes_prestamo)}</div>` : ""}
+        </td>
         <td class="font-mono-ledger" data-label="Abonado">${fmt.money(f.total_abonado)}</td>
         <td class="font-mono-ledger" data-label="Saldo">${fmt.money(f.saldo_pendiente)}</td>
         <td data-label="Cuota"><span class="text-sm">${f.texto_cuota}</span></td>
@@ -838,7 +785,6 @@ async function cargarFacturas() {
         <td data-label="Mora"><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
         <td class="whitespace-nowrap">
           <div class="flex items-center gap-3">
-            ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--text-dim)" title="${f.cuota_manual_override !== null ? "Cuota ajustada a mano — clic para cambiar" : "Forzar el número de cuota a mano"}" onclick="abrirModalCuotaManual(${f.id})">Editar cuota${f.cuota_manual_override !== null ? " *" : ""}</button>` : ""}
             ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}
             ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:#f0a500" onclick="abrirModalReenganche(${f.id})">Reenganchar</button>` : ""}
             ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--text-dim)" onclick="abrirModalFacturaEdicion(${f.id})">Editar</button>` : ""}
@@ -857,47 +803,41 @@ async function descargarJPGFactura(facturaId) {
   const f = facturasPorId[facturaId];
   if (!f) throw new Error("No encontré esa factura, refresca la página e intenta de nuevo");
 
-  const interes = Number(f.interes_prestamo || 0);
-  const capital = Number(f.total || 0) - interes;
-
-  // Fecha de Pago = fecha de vencimiento vigente de la cuota que se está
-  // cobrando/registrando.
-  const fechaPago = fmt.date(f.fecha_vencimiento_vigente);
-  // Pie de página = momento exacto en que se genera este comprobante (hoy),
-  // siempre correcto porque se calcula al vuelo, sin depender de ningún
-  // dato guardado en la base de datos.
-  const fechaGenerado = fmt.fechaLarga(new Date());
-
+  // Arma un recibo visual (fondo blanco, para que se vea bien como imagen/foto)
   const recibo = document.createElement("div");
   recibo.style.cssText = "position:fixed; left:-9999px; top:0; width:380px; background:#ffffff; color:#111827; font-family:system-ui,sans-serif; padding:24px; border-radius:12px;";
   recibo.innerHTML = `
-    <div style="text-align:center; margin-bottom:14px;">
+    <div style="text-align:center; margin-bottom:16px;">
       <img src="static/img/logo-rym.jpeg" style="width:56px; height:56px; border-radius:8px; object-fit:cover; margin:0 auto 8px;" />
       <div style="font-size:18px; font-weight:700;">RYM Inversiones</div>
       <div style="font-size:12px; color:#6b7280;">Comprobante de factura</div>
     </div>
-    <div style="border-top:1px solid #111827; margin-bottom:12px;"></div>
-    <div style="font-size:14px;">
+    <div style="border-top:1px dashed #d1d5db; border-bottom:1px dashed #d1d5db; padding:12px 0; margin-bottom:12px; font-size:14px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">No. Factura</span><strong>${f.numero_factura}</strong></div>
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Cliente</span><strong>${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</strong></div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Fecha de Pago</span><strong>${fechaPago}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Fecha de Pago</span><strong>${fmt.date(f.fecha_vencimiento_vigente)}</strong></div>
       <div style="display:flex; justify-content:space-between;"><span style="color:#6b7280;">Cuota</span><strong>${f.texto_cuota}</strong></div>
     </div>
-    <div style="border-top:1px dashed #d1d5db; margin:12px 0;"></div>
-    <div style="font-size:14px;">
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Capital</span><strong>${fmt.money(capital)}</strong></div>
-      <div style="display:flex; justify-content:space-between;"><span style="color:#6b7280;">Interés</span><strong>${fmt.money(interes)}</strong></div>
+    ${f.items && f.items.length > 1 ? `
+    <div style="margin-bottom:12px; font-size:13px;">
+      <div style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Concepto</div>
+      ${f.items.map(it => `
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span>${it.descripcion || "—"}${Number(it.cantidad) > 1 ? ` x${Number(it.cantidad)}` : ""}</span>
+          <strong>${fmt.money(it.subtotal_linea)}</strong>
+        </div>
+      `).join("")}
     </div>
-    <div style="border-top:1px dashed #d1d5db; margin:12px 0;"></div>
+    ` : ""}
     <div style="font-size:14px;">
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Total</span><strong>${fmt.money(f.total)}</strong></div>
-      <div style="display:flex; justify-content:space-between;"><span style="color:#6b7280;">Abonado</span><strong>${fmt.money(f.total_abonado)}</strong></div>
+      ${Number(f.interes_prestamo) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Capital</span><strong>${fmt.money(f.subtotal)}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Interés</span><strong>${fmt.money(f.interes_prestamo)}</strong></div>` : ""}
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-top:6px; border-top:1px dashed #d1d5db;"><span style="color:#6b7280;">Capital e Interés</span><strong>${fmt.money(f.total)}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Abonado</span><strong>${fmt.money(f.total_abonado)}</strong></div>
+      <div style="display:flex; justify-content:space-between; font-size:16px; margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
     </div>
-    <div style="border-top:1px solid #111827; margin:12px 0;"></div>
-    <div style="display:flex; justify-content:space-between; font-size:16px;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
-    <div style="border-top:1px dashed #d1d5db; margin:12px 0;"></div>
-    <div style="text-align:center; font-size:11px; color:#9ca3af;">Generado el ${fechaGenerado}</div>
-    <div style="border-top:1px solid #111827; margin-top:10px;"></div>
+    <div style="text-align:center; margin-top:16px; font-size:11px; color:#9ca3af;">Generado el ${new Date().toLocaleDateString("es-DO", { year: "numeric", month: "short", day: "numeric" })}</div>
+    ${f.notas ? `<div style="margin-top:14px; padding-top:10px; border-top:1px dashed #d1d5db; font-size:12px; color:#374151;"><strong>Nota:</strong> ${f.notas}</div>` : ""}
   `;
   document.body.appendChild(recibo);
 
@@ -926,7 +866,7 @@ async function enviarPorWhatsapp(facturaId) {
   try {
     await descargarPDFFactura(f.id, f.numero_factura);
     const saldo = f.saldo_pendiente;
-    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}, ${f.texto_cuota}). Vence el ${fmt.date(f.fecha_vencimiento_vigente)}.`;
+    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}, ${f.texto_cuota}). Fecha de pago: ${fmt.date(f.fecha_vencimiento_vigente)}.`;
     abrirWhatsapp(f.cliente.telefono, mensaje);
     toast("Se descargó el PDF — adjúntalo en la conversación de WhatsApp que se abrió");
   } catch (err) { toast(err.message, "error"); }

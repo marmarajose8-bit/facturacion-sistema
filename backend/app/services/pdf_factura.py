@@ -40,7 +40,7 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
     cliente = factura.cliente
     datos = [
         ["Cliente:", cliente.razon_social, "Fecha emisión:", str(factura.fecha_emision)],
-        ["Documento:", cliente.numero_documento, "Fecha vencimiento:", str(factura.fecha_vencimiento_vigente)],
+        ["Documento:", cliente.numero_documento, "Fecha de Pago:", str(factura.fecha_vencimiento_vigente)],
         ["Teléfono:", cliente.telefono or "-", "Estado:", factura.estado.value.capitalize()],
         ["Cuota:", factura.texto_cuota, "", ""],
     ]
@@ -82,24 +82,40 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
     story.append(tabla_items)
     story.append(Spacer(1, 12))
 
-    # Totales
-    totales = [
-        ["Subtotal", _fmt(factura.subtotal)],
-        ["Impuestos", _fmt(factura.impuestos)],
-        ["Interés del préstamo", _fmt(factura.interes_prestamo)],
-        ["Descuento", f"-{_fmt(factura.descuento)}"],
-        ["Total", _fmt(factura.total)],
+    # Totales — la fila final ya no dice "Total", dice "Capital e Interés"
+    # (con el monto final de la factura), que es como se maneja el negocio.
+    # El desglose de "Capital" e "Interés" por separado solo se agrega cuando
+    # la factura de verdad tiene interés aplicado.
+    tiene_interes = factura.interes_prestamo and factura.interes_prestamo > 0
+    totales = []
+    if tiene_interes:
+        totales.append(["Capital", _fmt(factura.subtotal)])
+    totales.append(["Impuestos", _fmt(factura.impuestos)])
+    if tiene_interes:
+        totales.append(["Interés", _fmt(factura.interes_prestamo)])
+    totales.append(["Descuento", f"-{_fmt(factura.descuento)}"])
+    fila_capital_interes = len(totales)
+    totales.append(["Capital e Interés", _fmt(factura.total)])
+    totales += [
+        ["Abonado", _fmt(factura.total_abonado)],
         ["Saldo pendiente", _fmt(factura.saldo_pendiente)],
     ]
     tabla_totales = Table(totales, colWidths=[13 * cm, 4 * cm])
-    tabla_totales.setStyle(TableStyle([
+    estilo_totales = [
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
         ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
         ("FONTSIZE", (0, -1), (-1, -1), 11),
         ("LINEABOVE", (0, -1), (-1, -1), 0.8, colors.black),
         ("TOPPADDING", (0, -1), (-1, -1), 6),
-    ]))
+        # Resalta la fila "Capital e Interés" para que se vea de un vistazo.
+        ("FONTNAME", (0, fila_capital_interes), (-1, fila_capital_interes), "Helvetica-Bold"),
+        ("LINEABOVE", (0, fila_capital_interes), (-1, fila_capital_interes), 0.4, colors.HexColor("#999999")),
+        ("LINEBELOW", (0, fila_capital_interes), (-1, fila_capital_interes), 0.4, colors.HexColor("#999999")),
+        ("TOPPADDING", (0, fila_capital_interes), (-1, fila_capital_interes), 5),
+        ("BOTTOMPADDING", (0, fila_capital_interes), (-1, fila_capital_interes), 5),
+    ]
+    tabla_totales.setStyle(TableStyle(estilo_totales))
     story.append(tabla_totales)
 
     if factura.notas:

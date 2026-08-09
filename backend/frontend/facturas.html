@@ -201,17 +201,26 @@
         <label class="text-xs" style="color:var(--text-dim)">Notas (opcional)</label>
         <input id="factura_notas" class="w-full mt-1" placeholder="Ej: acuerdo especial, referencia, garantía..." />
       </div>
-      <input type="hidden" id="tasa_interes_prestamo" value="" />
+
+      <div class="flex items-center gap-2 pt-1">
+        <input type="checkbox" id="toggleTasaInteres" onchange="toggleSistemaPorcentaje(this.checked)" />
+        <label for="toggleTasaInteres" class="text-xs" style="color:var(--text-dim)">Aplicar % de interés al préstamo</label>
+      </div>
+      <div id="bloqueTasaInteres" class="hidden">
+        <label class="text-xs" style="color:var(--text-dim)">% de interés</label>
+        <input type="number" id="tasa_interes_prestamo" step="0.01" min="0" placeholder="ej: 15" class="w-full mt-1" oninput="actualizarIndicadorPorcentaje()" />
+        <p id="indicadorPorcentaje" class="text-xs mt-1" style="color:var(--text-dim)"></p>
+      </div>
 
       <div class="pt-2">
         <div class="flex items-center justify-between mb-2">
-          <label class="text-xs" style="color:var(--text-dim)">Monto del préstamo</label>
+          <label class="text-xs" style="color:var(--text-dim)">Concepto</label>
           <div class="flex items-center gap-3">
             <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="toggleAvanzado()">opciones avanzadas</button>
             <button type="button" id="btnAgregarItem" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar otro concepto</button>
           </div>
         </div>
-        <div id="itemsContainer" class="space-y-2"></div>
+        <div id="itemsContainer" class="space-y-2" oninput="actualizarIndicadorPorcentaje()"></div>
       </div>
 
       <div class="flex justify-end gap-3 pt-4">
@@ -309,6 +318,9 @@ function abrirModalFactura() {
   document.querySelectorAll(".item-row .item-desc, .item-row .item-precio, .item-row .item-cant, .item-row .item-imp")
     .forEach(el => el.disabled = false);
   document.getElementById("formFactura").reset();
+  document.getElementById("toggleTasaInteres").checked = false;
+  document.getElementById("bloqueTasaInteres").classList.add("hidden");
+  document.getElementById("indicadorPorcentaje").textContent = "";
   document.getElementById("modalFactura").classList.remove("hidden");
   document.getElementById("modalFactura").classList.add("flex");
   cargarClientesSelect();
@@ -333,6 +345,9 @@ async function abrirModalFacturaEdicion(facturaId) {
   document.getElementById("frecuencia_pago").value = f.frecuencia_pago;
   document.getElementById("numero_cuotas").value = f.total_cuotas;
   document.getElementById("tasa_interes_prestamo").value = f.tasa_interes_prestamo || "";
+  const tieneTasa = !!f.tasa_interes_prestamo;
+  document.getElementById("toggleTasaInteres").checked = tieneTasa;
+  document.getElementById("bloqueTasaInteres").classList.toggle("hidden", !tieneTasa);
   document.getElementById("factura_notas").value = f.notas || "";
 
   document.getElementById("itemsContainer").innerHTML = "";
@@ -346,6 +361,7 @@ async function abrirModalFacturaEdicion(facturaId) {
     ultima.querySelector(".item-cant").value = it.cantidad;
     ultima.querySelector(".item-imp").value = it.porcentaje_impuesto;
   });
+  actualizarIndicadorPorcentaje();
 
   const tienePagos = !f.editable_completo;
   document.getElementById("facturaEditAviso").classList.toggle("hidden", !tienePagos);
@@ -451,6 +467,41 @@ function agregarItem() {
 
 function toggleAvanzado() {
   document.querySelectorAll(".item-avanzado").forEach(el => el.classList.toggle("hidden"));
+}
+
+// --- Sistema de % de interés: modular, no afecta el envío si está apagado ---
+function toggleSistemaPorcentaje(activado) {
+  const bloque = document.getElementById("bloqueTasaInteres");
+  bloque.classList.toggle("hidden", !activado);
+  if (!activado) {
+    // Al apagar el interruptor, se limpia el valor para que el cálculo
+    // manual principal (montos de los ítems) quede intacto, sin interés
+    // "fantasma" colándose en el envío.
+    document.getElementById("tasa_interes_prestamo").value = "";
+    document.getElementById("indicadorPorcentaje").textContent = "";
+  } else {
+    actualizarIndicadorPorcentaje();
+  }
+}
+
+function actualizarIndicadorPorcentaje() {
+  const indicador = document.getElementById("indicadorPorcentaje");
+  if (!indicador) return;
+  const tasa = parseFloat(document.getElementById("tasa_interes_prestamo").value || 0);
+  const montoBase = Array.from(document.querySelectorAll("#itemsContainer .item-row")).reduce((acc, row) => {
+    const cant = parseFloat(row.querySelector(".item-cant").value || 0);
+    const precio = parseFloat(row.querySelector(".item-precio").value || 0);
+    return acc + (cant * precio);
+  }, 0);
+  indicador.innerHTML = renderizarIndicadorPorcentaje(montoBase, tasa);
+}
+
+// Visualización discreta del porcentaje mientras se llena la factura
+// (el cálculo real y definitivo del interés lo hace el backend al emitir).
+function renderizarIndicadorPorcentaje(montoBase, tasa) {
+  if (!tasa || tasa <= 0 || !montoBase) return "";
+  const calculoInteres = montoBase * (tasa / 100);
+  return `Incluye ${tasa}% de interés: ${fmt.money(calculoInteres)}`;
 }
 
 let clientesCache = [];
@@ -754,6 +805,17 @@ async function descargarJPGFactura(facturaId) {
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Vencimiento</span><strong>${fmt.date(f.fecha_vencimiento_vigente)}</strong></div>
       <div style="display:flex; justify-content:space-between;"><span style="color:#6b7280;">Cuota</span><strong>${f.texto_cuota}</strong></div>
     </div>
+    ${f.items && f.items.length ? `
+    <div style="margin-bottom:12px; font-size:13px;">
+      <div style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Concepto</div>
+      ${f.items.map(it => `
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span>${it.descripcion || "—"}${Number(it.cantidad) > 1 ? ` x${Number(it.cantidad)}` : ""}</span>
+          <strong>${fmt.money(it.subtotal_linea)}</strong>
+        </div>
+      `).join("")}
+    </div>
+    ` : ""}
     <div style="font-size:14px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Total</span><strong>${fmt.money(f.total)}</strong></div>
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Abonado</span><strong>${fmt.money(f.total_abonado)}</strong></div>

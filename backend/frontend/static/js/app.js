@@ -36,12 +36,30 @@ const fmt = {
   money: (n) => new Intl.NumberFormat("es-DO", { style: "currency", currency: "DOP" }).format(n || 0),
   date: (d) => {
     if (!d) return "";
-    // Construye la fecha con los componentes locales en vez de dejar que
-    // "new Date(...)" la interprete como medianoche UTC — eso es lo que
-    // causaba que se mostrara un dia antes en la hora de RD (UTC-4).
-    const soloFecha = String(d).split("T")[0];
-    const [y, m, day] = soloFecha.split("-").map(Number);
-    return new Date(y, m - 1, day).toLocaleDateString("es-DO", { year: "numeric", month: "short", day: "numeric" });
+    // Acepta tanto un string "YYYY-MM-DD" (lo que manda el backend) como un
+    // objeto Date ya construido (ej. new Date()) — antes solo aceptaba el
+    // string, así que pasarle un Date directo producía "Invalid Date".
+    let dateObj;
+    if (d instanceof Date) {
+      dateObj = d;
+    } else {
+      // Construye la fecha con los componentes locales en vez de dejar que
+      // "new Date(...)" la interprete como medianoche UTC — eso es lo que
+      // causaba que se mostrara un dia antes en la hora de RD (UTC-4).
+      const soloFecha = String(d).split("T")[0];
+      const [y, m, day] = soloFecha.split("-").map(Number);
+      dateObj = new Date(y, m - 1, day);
+    }
+    if (isNaN(dateObj.getTime())) dateObj = new Date(); // ultima salvaguarda: nunca mostrar "Invalid Date"
+    return dateObj.toLocaleDateString("es-DO", { year: "numeric", month: "short", day: "numeric" });
+  },
+  // Formato largo en español para textos formales del comprobante,
+  // ej. "8 de agosto de 2026". Si no se pasa fecha (o llega inválida),
+  // usa la fecha de hoy en vez de mostrar cualquier error.
+  fechaLarga: (d) => {
+    let dateObj = d instanceof Date ? d : (d ? new Date(d) : new Date());
+    if (isNaN(dateObj.getTime())) dateObj = new Date();
+    return dateObj.toLocaleDateString("es-DO", { year: "numeric", month: "long", day: "numeric" });
   },
 };
 

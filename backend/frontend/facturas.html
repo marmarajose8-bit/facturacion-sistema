@@ -888,7 +888,7 @@ async function descargarJPGFactura(facturaId) {
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Abonado</span><strong>${fmt.money(f.total_abonado)}</strong></div>
       <div style="display:flex; justify-content:space-between; font-size:16px; margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
     </div>
-    <div style="text-align:center; margin-top:16px; font-size:11px; color:#9ca3af;">Generado el ${fmt.date(new Date())}</div>
+    <div style="text-align:center; margin-top:16px; font-size:11px; color:#9ca3af;">Generado el ${fmt.fechaLarga(new Date())}</div>
     ${f.notas ? `<div style="margin-top:14px; padding-top:10px; border-top:1px dashed #d1d5db; font-size:12px; color:#374151;"><strong>Nota:</strong> ${f.notas}</div>` : ""}
   `;
   document.body.appendChild(recibo);

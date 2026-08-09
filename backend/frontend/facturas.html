@@ -891,7 +891,7 @@ async function descargarJPGFactura(facturaId) {
     <div style="border-top:1px solid #111827; margin:12px 0;"></div>
     <div style="display:flex; justify-content:space-between; font-size:16px;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
     <div style="border-top:1px dashed #d1d5db; margin:12px 0;"></div>
-    <div style="text-align:center; font-size:11px; color:#9ca3af;">Generado el ${fmt.fechaLarga(new Date())}</div>
+    <div style="text-align:center; font-size:11px; color:#9ca3af;">Vence el ${fmt.date(f.fecha_vencimiento_vigente)}</div>
     <div style="border-top:1px solid #111827; margin-top:10px;"></div>
   `;
   document.body.appendChild(recibo);

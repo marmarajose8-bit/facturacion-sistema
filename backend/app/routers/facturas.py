@@ -313,10 +313,27 @@ def ajustar_cuota_manual(factura_id: int, payload: CuotaManualUpdate, db: Sessio
                 400,
                 f"El número de cuota debe estar entre 0 y {factura.total_cuotas} (el total de cuotas de esta factura)",
             )
+
+    # Aislamiento total: numero_factura es sagrado. Se guarda ANTES de
+    # tocar nada, y se compara DESPUÉS del commit — si por cualquier motivo
+    # llegara a cambiar (bug futuro, migración de datos, lo que sea), esto
+    # revienta con un error 500 en vez de dejar pasar en silencio un
+    # número de factura alterado. Este endpoint solo debe escribir UN
+    # campo: cuota_manual_override.
+    numero_factura_antes = factura.numero_factura
     factura.cuota_manual_override = payload.cuota
 
     db.commit()
     db.refresh(factura)
+
+    if factura.numero_factura != numero_factura_antes:
+        db.rollback()
+        raise HTTPException(
+            500,
+            "Se bloqueó el ajuste de cuota: se detectó un intento de alterar el número de factura, "
+            "lo cual nunca debe pasar. No se guardó ningún cambio.",
+        )
+
     return factura
 
 

@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: facturacion_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-facturacion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-facturacion_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-facturacion_db}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-facturacion}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: facturacion_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-facturacion}:${POSTGRES_PASSWORD:-facturacion_pass}@db:5432/${POSTGRES_DB:-facturacion_db}
+      SECRET_KEY: ${SECRET_KEY:-change_this_secret_in_production}
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+    ports:
+      - "8080:8000"
+    volumes:
+      - ./backend:/app
+
+volumes:
+  db_data:

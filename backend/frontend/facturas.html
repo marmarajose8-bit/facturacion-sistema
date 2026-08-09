@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Facturas — RYM Inversiones</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/styles.css" />
+<style>
+  .asistente-opcion, .asistente-cliente-item {
+    display:block; padding:1rem 1.1rem; border-radius:0.6rem;
+    background:var(--panel-2); border:2px solid var(--border); cursor:pointer;
+    transition: border-color .15s ease; width:100%; text-align:left;
+  }
+  .asistente-opcion:hover, .asistente-cliente-item:hover { border-color:var(--accent); }
+</style>
+</head>
+<body class="min-h-screen">
+<div class="flex flex-col md:flex-row">
+
+  <aside class="w-full md:w-60 md:min-h-screen panel-2 p-3 md:p-4 flex flex-row md:flex-col items-center md:items-stretch justify-between gap-3 md:gap-0" style="border-bottom:1px solid var(--border);">
+    <div class="flex items-center gap-4 md:block min-w-0 overflow-x-auto">
+      <div class="flex items-center gap-2 px-0 md:px-2 md:mb-8 shrink-0">
+        <img src="static/img/logo-rym.jpeg" alt="RYM Inversiones" class="w-9 h-9 rounded-lg object-cover" />
+        <span class="font-semibold leading-tight">RYM<span style="color:var(--accent)"> Inversiones</span></span>
+      </div>
+      <nav class="flex md:flex-col gap-1 md:gap-0 md:space-y-1 shrink-0">
+        <a href="dashboard.html" class="sidebar-link">Dashboard</a>
+        <a href="clientes.html" class="sidebar-link">Clientes</a>
+        <a href="facturas.html" class="sidebar-link active">Facturas</a>
+        <a href="cartera.html" class="sidebar-link">Cartera y Mora</a>
+      </nav>
+    </div>
+    <div class="px-0 md:px-2 shrink-0">
+      <p class="text-xs mb-2 hidden md:block" style="color:var(--text-dim)" id="usuarioNombre"></p>
+      <button onclick="Auth.logout()" class="btn-ghost text-sm px-3 py-2 md:w-full">Salir</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-4 md:p-8 w-full min-w-0">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold">Facturas</h1>
+        <p class="text-sm" style="color:var(--text-dim)">Emisión, cuotas y estado de cobro</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn-ghost" onclick="abrirModalFactura()">+ Nueva factura (avanzado)</button>
+      </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-2 mb-4">
+      <input id="buscadorFacturas" placeholder="Buscar por cliente, documento o número de factura..." class="flex-1" oninput="cargarFacturas()" />
+      <select id="filtroEstado" class="sm:w-56" onchange="cargarFacturas()">
+        <option value="">Todos los estados</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="parcial">Parcial</option>
+        <option value="pagada">Pagada</option>
+        <option value="vencida">Vencida</option>
+        <option value="anulada">Anulada</option>
+        <option value="reenganchada">Reenganchada</option>
+      </select>
+    </div>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
+      <label class="text-xs" style="color:var(--text-dim)">Desde</label>
+      <input type="date" id="filtroFechaDesde" class="sm:w-48" onchange="autocompletarHasta(); cargarFacturas();" />
+      <label class="text-xs" style="color:var(--text-dim)">Hasta</label>
+      <input type="date" id="filtroFechaHasta" class="sm:w-48" onchange="cargarFacturas()" />
+      <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="document.getElementById('filtroFechaDesde').value=''; document.getElementById('filtroFechaHasta').value=''; cargarFacturas();">limpiar fechas</button>
+    </div>
+
+    <div class="panel overflow-hidden mb-8">
+      <div class="overflow-x-auto">
+      <table class="ledger w-full" style="min-width:680px;">
+        <thead>
+          <tr>
+            <th>No. Factura</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Cuota</th><th>Estado</th><th>Mora</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tablaFacturas"></tbody>
+      </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal Asistente (modo fácil, paso a paso) -->
+<div id="modalAsistente" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-3 sm:p-6">
+  <div class="panel p-5 sm:p-8 w-full max-w-lg" style="font-size:1.05rem;">
+
+    <div class="flex items-center justify-between mb-5">
+      <p class="text-xs" style="color:var(--text-dim)">Paso <span id="asistentePasoActual">1</span> de 4</p>
+      <button type="button" onclick="cerrarAsistente()" style="color:var(--text-dim)" class="text-sm">✕ Cerrar</button>
+    </div>
+
+    <!-- Paso 1: Cliente -->
+    <div id="asistentePaso1">
+      <h2 class="text-xl font-semibold mb-1">¿Para quién es esta factura?</h2>
+      <p class="text-sm mb-4" style="color:var(--text-dim)">Escribe el nombre y toca al cliente.</p>
+      <input id="asistenteBuscarCliente" class="w-full mb-3" placeholder="Escribe el nombre del cliente..." oninput="asistenteFiltrarClientes()" style="padding:0.85rem; font-size:1.1rem;" />
+      <div id="asistenteListaClientes" class="space-y-2" style="max-height:280px; overflow-y:auto;"></div>
+      <p class="text-xs mt-3" style="color:var(--text-dim)">¿El cliente no existe todavía? Ve primero a <a href="clientes.html" style="color:var(--accent)">Clientes</a> y créalo, luego vuelve aquí.</p>
+    </div>
+
+    <!-- Paso 2: Monto -->
+    <div id="asistentePaso2" class="hidden">
+      <h2 class="text-xl font-semibold mb-1">¿Cuánto es el monto?</h2>
+      <p class="text-sm mb-4" style="color:var(--text-dim)">Cliente: <b id="asistenteClienteNombre" style="color:var(--accent)"></b></p>
+      <input type="number" id="asistenteMonto" class="w-full mb-4 text-center" placeholder="0.00" style="padding:1rem; font-size:1.8rem; font-weight:700;" />
+      <div class="flex justify-between gap-3">
+        <button type="button" class="btn-ghost" onclick="asistenteIrPaso(1)">← Atrás</button>
+        <button type="button" class="btn-primary flex-1" onclick="asistenteValidarMonto()">Siguiente →</button>
+      </div>
+    </div>
+
+    <!-- Paso 3: Frecuencia -->
+    <div id="asistentePaso3" class="hidden">
+      <h2 class="text-xl font-semibold mb-1">¿Cada cuánto te va a pagar?</h2>
+      <p class="text-sm mb-4" style="color:var(--text-dim)">Toca una opción.</p>
+      <div class="space-y-2 mb-4">
+        <button type="button" class="asistente-opcion" data-valor="semanal" onclick="asistenteElegirFrecuencia('semanal')">
+          <b>Semanal</b><br><span class="text-xs" style="color:var(--text-dim)">Paga una vez por semana</span>
+        </button>
+        <button type="button" class="asistente-opcion" data-valor="quincenal" onclick="asistenteElegirFrecuencia('quincenal')">
+          <b>Quincenal</b><br><span class="text-xs" style="color:var(--text-dim)">Paga los días 15 y 30 de cada mes</span>
+        </button>
+        <button type="button" class="asistente-opcion" data-valor="mensual" onclick="asistenteElegirFrecuencia('mensual')">
+          <b>Mensual</b><br><span class="text-xs" style="color:var(--text-dim)">Paga una vez al mes</span>
+        </button>
+      </div>
+      <button type="button" class="btn-ghost" onclick="asistenteIrPaso(2)">← Atrás</button>
+    </div>
+
+    <!-- Paso 4: Cuotas + Confirmar -->
+    <div id="asistentePaso4" class="hidden">
+      <h2 class="text-xl font-semibold mb-1">¿En cuántas partes va a pagar?</h2>
+      <p class="text-sm mb-4" style="color:var(--text-dim)">Si te va a pagar todo de una vez, deja el número en 1.</p>
+      <div class="flex items-center justify-center gap-4 mb-5">
+        <button type="button" class="btn-ghost" style="font-size:1.5rem; width:3rem;" onclick="asistenteCambiarCuotas(-1)">−</button>
+        <span id="asistenteCuotasValor" style="font-size:2rem; font-weight:700; min-width:3ch; text-align:center;">1</span>
+        <button type="button" class="btn-ghost" style="font-size:1.5rem; width:3rem;" onclick="asistenteCambiarCuotas(1)">+</button>
+      </div>
+
+      <div class="p-4 rounded-lg mb-4" style="background:var(--panel-2); border:1px solid var(--border);">
+        <p class="text-sm mb-1">Vas a emitir una factura para:</p>
+        <p><b id="asistenteResumenCliente"></b></p>
+        <p>Monto: <b id="asistenteResumenMonto" style="color:var(--accent)"></b></p>
+        <p>Cobro: <b id="asistenteResumenFrecuencia"></b>, en <b id="asistenteResumenCuotas"></b> cuota(s)</p>
+      </div>
+
+      <div class="flex justify-between gap-3">
+        <button type="button" class="btn-ghost" onclick="asistenteIrPaso(3)">← Atrás</button>
+        <button type="button" class="btn-primary flex-1" onclick="asistenteEmitir()">✅ Sí, emitir factura</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal nueva factura -->
+<div id="modalFactura" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
+  <div class="panel p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <h2 id="modalFacturaTitulo" class="text-lg font-semibold mb-4">Nueva factura</h2>
+    <input type="hidden" id="factura_edit_id" value="" />
+    <input type="hidden" id="factura_tiene_pagos" value="0" />
+    <input type="hidden" id="factura_capital_pagado" value="0" />
+
+    <p id="facturaEditAviso" class="text-sm mb-4 hidden p-3 rounded-lg" style="background:var(--panel-2); border:1px solid var(--warn); color:var(--warn);">
+      Esta factura ya tiene abonos registrados. Puedes corregir el monto, los ítems o el número de cuotas si hubo
+      un error al capturarla — el sistema reaplica automáticamente lo ya cobrado sobre el plan corregido, sin
+      perder el rastro del pago. Solo no te va a dejar bajar el monto por debajo de lo que ya se cobró.
+    </p>
+
+    <form id="formFactura" class="space-y-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Cliente</label>
+          <select id="cliente_id" required class="w-full mt-1"></select>
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Fecha de vencimiento</label>
+          <input type="date" id="fecha_vencimiento" required class="w-full mt-1" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Frecuencia de cobro</label>
+          <select id="frecuencia_pago" class="w-full mt-1">
+            <option value="semanal">Semanal</option>
+            <option value="quincenal">Quincenal (15 y 30)</option>
+            <option value="mensual" selected>Mensual</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Número de cuotas (1 = pago único)</label>
+          <input type="number" id="numero_cuotas" value="1" min="1" class="w-full mt-1" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Notas (opcional)</label>
+        <input id="factura_notas" class="w-full mt-1" placeholder="Ej: acuerdo especial, referencia, garantía..." />
+      </div>
+      <input type="hidden" id="tasa_interes_prestamo" value="" />
+
+      <div class="pt-2">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs" style="color:var(--text-dim)">Monto del préstamo</label>
+          <div class="flex items-center gap-3">
+            <button type="button" class="text-xs" style="color:var(--text-dim)" onclick="toggleAvanzado()">opciones avanzadas</button>
+            <button type="button" id="btnAgregarItem" class="text-xs" style="color:var(--accent)" onclick="agregarItem()">+ agregar otro concepto</button>
+          </div>
+        </div>
+        <div id="itemsContainer" class="space-y-2"></div>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" class="btn-ghost" onclick="cerrarModalFactura()">Cancelar</button>
+        <button type="submit" id="formFacturaSubmitBtn" class="btn-primary">Emitir factura</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal registrar pago -->
+<div id="modalPago" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
+  <div class="panel p-4 sm:p-6 w-full max-w-md">
+    <h2 class="text-lg font-semibold mb-4">Registrar pago / abono</h2>
+    <form id="formPago" class="space-y-3">
+      <input type="hidden" id="pago_factura_id" />
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Monto</label>
+        <input type="number" step="0.01" id="pago_monto" required class="w-full mt-1" oninput="actualizarVuelto()" />
+      </div>
+      <p id="pago_vuelto_info" class="text-sm hidden" style="color:var(--accent)"></p>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Método de pago</label>
+        <select id="pago_metodo" class="w-full mt-1" onchange="actualizarVuelto()">
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia</option>
+          <option value="tarjeta">Tarjeta</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Referencia (opcional)</label>
+        <input id="pago_referencia" class="w-full mt-1" />
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" class="btn-ghost" onclick="cerrarModalPago()">Cancelar</button>
+        <button type="submit" class="btn-primary">Registrar pago</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal reenganche (ampliación de préstamo) -->
+<div id="modalReenganche" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-3 sm:p-6">
+  <div class="panel p-4 sm:p-6 w-full max-w-md">
+    <h2 class="text-lg font-semibold mb-2">Reenganchar préstamo</h2>
+    <p id="reengancheResumen" class="text-sm mb-4" style="color:var(--text-dim)">Consultando elegibilidad...</p>
+    <form id="formReenganche" class="space-y-3">
+      <input type="hidden" id="reenganche_factura_id" />
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Monto adicional a entregar</label>
+        <input type="number" step="0.01" id="reenganche_monto" required class="w-full mt-1" />
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">Nueva fecha de vencimiento</label>
+          <input type="date" id="reenganche_fecha_vencimiento" required class="w-full mt-1" />
+        </div>
+        <div>
+          <label class="text-xs" style="color:var(--text-dim)">No. de cuotas</label>
+          <input type="number" id="reenganche_numero_cuotas" value="1" min="1" class="w-full mt-1" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Descripción (opcional — usa "Reenganche de crédito" si se deja vacío)</label>
+        <input id="reenganche_descripcion" class="w-full mt-1" />
+      </div>
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" class="btn-ghost" onclick="cerrarModalReenganche()">Cancelar</button>
+        <button type="submit" id="reengancheSubmitBtn" class="btn-primary">Confirmar reenganche</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="static/js/app.js"></script>
+<script>
+Auth.requireAuth();
+const esAdmin = Auth.getUsuario()?.rol === "admin";
+document.getElementById("usuarioNombre").textContent = Auth.getUsuario()?.nombre_completo || "";
+
+const urlParams = new URLSearchParams(window.location.search);
+const clienteFiltro = urlParams.get("cliente_id");
+
+function abrirModalFactura() {
+  document.getElementById("factura_edit_id").value = "";
+  document.getElementById("factura_tiene_pagos").value = "0";
+  document.getElementById("factura_capital_pagado").value = "0";
+  document.getElementById("modalFacturaTitulo").textContent = "Nueva factura";
+  document.getElementById("formFacturaSubmitBtn").textContent = "Emitir factura";
+  document.getElementById("facturaEditAviso").classList.add("hidden");
+  document.getElementById("cliente_id").disabled = false;
+  document.getElementById("numero_cuotas").disabled = false;
+  document.getElementById("tasa_interes_prestamo").disabled = false;
+  document.getElementById("btnAgregarItem").classList.remove("hidden");
+  document.querySelectorAll(".item-row .item-desc, .item-row .item-precio, .item-row .item-cant, .item-row .item-imp")
+    .forEach(el => el.disabled = false);
+  document.getElementById("formFactura").reset();
+  document.getElementById("modalFactura").classList.remove("hidden");
+  document.getElementById("modalFactura").classList.add("flex");
+  cargarClientesSelect();
+  // Siempre arranca con una fila lista para llenar, para no depender de que
+  // recuerden hacer clic en "+ agregar" antes de poder escribir el monto.
+  document.getElementById("itemsContainer").innerHTML = "";
+  itemCount = 0;
+  agregarItem();
+}
+
+async function abrirModalFacturaEdicion(facturaId) {
+  await cargarClientesSelect();
+  const f = facturasPorId[facturaId] || await api(`/api/facturas/${facturaId}`);
+
+  document.getElementById("factura_edit_id").value = facturaId;
+  document.getElementById("modalFacturaTitulo").textContent = `Editar factura ${f.numero_factura}`;
+  document.getElementById("formFacturaSubmitBtn").textContent = "Guardar cambios";
+
+  document.getElementById("cliente_id").value = f.cliente_id;
+  document.getElementById("cliente_id").disabled = true; // no se reasigna cliente al editar
+  document.getElementById("fecha_vencimiento").value = f.fecha_vencimiento;
+  document.getElementById("frecuencia_pago").value = f.frecuencia_pago;
+  document.getElementById("numero_cuotas").value = f.total_cuotas;
+  document.getElementById("tasa_interes_prestamo").value = f.tasa_interes_prestamo || "";
+  document.getElementById("factura_notas").value = f.notas || "";
+
+  document.getElementById("itemsContainer").innerHTML = "";
+  itemCount = 0;
+  f.items.forEach(it => {
+    agregarItem();
+    const fila = document.querySelectorAll("#itemsContainer .item-row");
+    const ultima = fila[fila.length - 1];
+    ultima.querySelector(".item-desc").value = it.descripcion || "";
+    ultima.querySelector(".item-precio").value = it.precio_unitario;
+    ultima.querySelector(".item-cant").value = it.cantidad;
+    ultima.querySelector(".item-imp").value = it.porcentaje_impuesto;
+  });
+
+  const tienePagos = !f.editable_completo;
+  document.getElementById("facturaEditAviso").classList.toggle("hidden", !tienePagos);
+  document.getElementById("factura_tiene_pagos").value = tienePagos ? "1" : "0";
+  document.getElementById("factura_capital_pagado").value = f.total_abonado;
+  // Nada queda deshabilitado — solo se avisa. La validación de no bajar
+  // el monto por debajo de lo ya cobrado la hace el backend.
+
+  document.getElementById("modalFactura").classList.remove("hidden");
+  document.getElementById("modalFactura").classList.add("flex");
+}
+
+function cerrarModalFactura() { document.getElementById("modalFactura").classList.add("hidden"); document.getElementById("modalFactura").classList.remove("flex"); }
+function abrirModalPago(facturaId) {
+  document.getElementById("pago_factura_id").value = facturaId;
+  document.getElementById("pago_monto").value = "";
+  document.getElementById("pago_vuelto_info").classList.add("hidden");
+  document.getElementById("modalPago").classList.remove("hidden");
+  document.getElementById("modalPago").classList.add("flex");
+}
+function cerrarModalPago() { document.getElementById("modalPago").classList.add("hidden"); document.getElementById("modalPago").classList.remove("flex"); }
+
+async function abrirModalReenganche(facturaId) {
+  document.getElementById("reenganche_factura_id").value = facturaId;
+  document.getElementById("reenganche_monto").value = "";
+  document.getElementById("reenganche_descripcion").value = "";
+  document.getElementById("reenganche_fecha_vencimiento").value = "";
+  document.getElementById("reengancheResumen").textContent = "Consultando elegibilidad...";
+  document.getElementById("reengancheSubmitBtn").disabled = false;
+  document.getElementById("modalReenganche").classList.remove("hidden");
+  document.getElementById("modalReenganche").classList.add("flex");
+
+  try {
+    const info = await api(`/api/facturas/${facturaId}/reenganche/elegibilidad`);
+    const resumen = document.getElementById("reengancheResumen");
+    const f = facturasPorId[facturaId];
+    const nombreCliente = f?.cliente?.razon_social || "";
+    if (info.elegible) {
+      resumen.innerHTML = `<span style="color:var(--accent)">✓ ${nombreCliente} es elegible.</span> Ha pagado ${info.porcentaje_pagado.toFixed(1)}% del capital (mínimo requerido: ${info.porcentaje_minimo_requerido.toFixed(1)}%). Saldo a consolidar: ${fmt.money(info.saldo_a_consolidar)}.`;
+    } else {
+      resumen.innerHTML = `<span style="color:var(--danger-2)">✗ ${nombreCliente} aún no es elegible.</span> Ha pagado ${info.porcentaje_pagado.toFixed(1)}% del capital, pero se requiere al menos ${info.porcentaje_minimo_requerido.toFixed(1)}% para reenganchar.`;
+      document.getElementById("reengancheSubmitBtn").disabled = true;
+    }
+  } catch (err) {
+    document.getElementById("reengancheResumen").textContent = "No se pudo consultar la elegibilidad.";
+    toast(err.message, "error");
+  }
+}
+function cerrarModalReenganche() { document.getElementById("modalReenganche").classList.add("hidden"); document.getElementById("modalReenganche").classList.remove("flex"); }
+
+function actualizarVuelto() {
+  const facturaId = parseInt(document.getElementById("pago_factura_id").value);
+  const f = facturasPorId[facturaId];
+  const info = document.getElementById("pago_vuelto_info");
+  if (!f) { info.classList.add("hidden"); return; }
+
+  const saldo = f.saldo_pendiente;
+  const monto = parseFloat(document.getElementById("pago_monto").value);
+  const metodo = document.getElementById("pago_metodo").value;
+
+  if (isNaN(monto) || monto <= 0) { info.classList.add("hidden"); return; }
+
+  if (monto > saldo) {
+    if (metodo === "efectivo") {
+      info.textContent = `Vuelto a entregar en efectivo: ${fmt.money(monto - saldo)}`;
+      info.style.color = "var(--accent)";
+    } else {
+      info.textContent = `El monto excede el saldo (${fmt.money(saldo)}) — solo se permite recibir de más cuando el método es efectivo.`;
+      info.style.color = "var(--danger-2)";
+    }
+    info.classList.remove("hidden");
+  } else {
+    info.classList.add("hidden");
+  }
+}
+
+let itemCount = 0;
+function agregarItem() {
+  itemCount++;
+  const id = itemCount;
+  const div = document.createElement("div");
+  div.className = "item-row p-2 rounded-lg";
+  div.style.border = "1px solid var(--border)";
+  div.innerHTML = `
+    <div class="grid grid-cols-12 gap-2 items-center">
+      <input class="col-span-8 item-desc" placeholder="Concepto (opcional, ej: Préstamo personal)" />
+      <input type="number" step="0.01" class="col-span-3 item-precio" placeholder="Ej: 10000" required />
+      <button type="button" class="col-span-1 text-xs" style="color:var(--danger-2)" onclick="this.closest('.item-row').remove()">✕</button>
+    </div>
+    <div class="item-avanzado hidden grid grid-cols-2 gap-2 items-center mt-2">
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">Cantidad</label>
+        <input type="number" step="0.01" class="w-full mt-1 item-cant" value="1" />
+      </div>
+      <div>
+        <label class="text-xs" style="color:var(--text-dim)">% impuesto</label>
+        <input type="number" step="0.01" class="w-full mt-1 item-imp" value="0" />
+      </div>
+    </div>
+  `;
+  document.getElementById("itemsContainer").appendChild(div);
+}
+
+function toggleAvanzado() {
+  document.querySelectorAll(".item-avanzado").forEach(el => el.classList.toggle("hidden"));
+}
+
+let clientesCache = [];
+async function cargarClientesSelect() {
+  clientesCache = await api("/api/clientes?activo=true");
+  document.getElementById("cliente_id").innerHTML = clientesCache.map(c => `<option value="${c.id}">${c.razon_social}</option>`).join("");
+}
+
+function normalizar(txt) {
+  return (txt || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function calcularVencimiento(frecuencia) {
+  const hoy = new Date();
+  if (frecuencia === "semanal") hoy.setDate(hoy.getDate() + 7);
+  else if (frecuencia === "semanal") hoy.setDate(hoy.getDate() + 7);
+  else if (frecuencia === "quincenal") hoy.setDate(hoy.getDate() + 15);
+  else hoy.setMonth(hoy.getMonth() + 1);
+  return hoy.toISOString().slice(0, 10);
+}
+
+/* ================== ASISTENTE PASO A PASO (modo fácil) ================== */
+const asistenteEtiquetas = { semanal: "Semanal", quincenal: "Quincenal (15 y 30)", mensual: "Mensual" };
+let asistente = { clienteId: null, clienteNombre: "", monto: null, frecuencia: null, cuotas: 1 };
+
+async function abrirAsistente() {
+  asistente = { clienteId: null, clienteNombre: "", monto: null, frecuencia: null, cuotas: 1 };
+  document.getElementById("asistenteBuscarCliente").value = "";
+  document.getElementById("asistenteMonto").value = "";
+  document.getElementById("modalAsistente").classList.remove("hidden");
+  document.getElementById("modalAsistente").classList.add("flex");
+  if (clientesCache.length === 0) await cargarClientesSelect();
+  asistenteFiltrarClientes();
+  asistenteIrPaso(1);
+}
+function cerrarAsistente() {
+  document.getElementById("modalAsistente").classList.add("hidden");
+  document.getElementById("modalAsistente").classList.remove("flex");
+}
+function asistenteIrPaso(n) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById("asistentePaso" + i);
+    if (el) el.classList.toggle("hidden", i !== n);
+  }
+  document.getElementById("asistentePasoActual").textContent = n;
+}
+function asistenteFiltrarClientes() {
+  const texto = normalizar(document.getElementById("asistenteBuscarCliente").value);
+  const lista = document.getElementById("asistenteListaClientes");
+  const coincidencias = clientesCache.filter(c => !texto || normalizar(c.razon_social).includes(texto));
+  lista.innerHTML = coincidencias.slice(0, 30).map(c =>
+    `<button type="button" class="asistente-cliente-item" onclick="asistenteElegirCliente(${c.id}, '${c.razon_social.replace(/'/g, "\\'")}')">${c.razon_social}</button>`
+  ).join("") || `<p class="text-sm" style="color:var(--text-dim)">No hay clientes que coincidan.</p>`;
+}
+function asistenteElegirCliente(id, nombre) {
+  asistente.clienteId = id;
+  asistente.clienteNombre = nombre;
+  document.getElementById("asistenteClienteNombre").textContent = nombre;
+  asistenteIrPaso(2);
+  setTimeout(() => document.getElementById("asistenteMonto").focus(), 50);
+}
+function asistenteValidarMonto() {
+  const monto = parseFloat(document.getElementById("asistenteMonto").value);
+  if (isNaN(monto) || monto <= 0) { toast("Escribe un monto válido, mayor que cero", "error"); return; }
+  asistente.monto = monto;
+  asistenteIrPaso(3);
+}
+function asistenteElegirFrecuencia(valor) {
+  asistente.frecuencia = valor;
+  asistenteActualizarResumen();
+  asistenteIrPaso(4);
+}
+function asistenteCambiarCuotas(delta) {
+  asistente.cuotas = Math.max(1, asistente.cuotas + delta);
+  asistenteActualizarResumen();
+}
+function asistenteActualizarResumen() {
+  document.getElementById("asistenteCuotasValor").textContent = asistente.cuotas;
+  document.getElementById("asistenteResumenCliente").textContent = asistente.clienteNombre;
+  document.getElementById("asistenteResumenMonto").textContent = fmt.money(asistente.monto);
+  document.getElementById("asistenteResumenFrecuencia").textContent = asistenteEtiquetas[asistente.frecuencia] || "";
+  document.getElementById("asistenteResumenCuotas").textContent = asistente.cuotas;
+}
+async function asistenteEmitir() {
+  try {
+    await api("/api/facturas", { method: "POST", body: {
+      cliente_id: asistente.clienteId,
+      fecha_vencimiento: calcularVencimiento(asistente.frecuencia),
+      frecuencia_pago: asistente.frecuencia,
+      numero_cuotas: asistente.cuotas,
+      items: [{ descripcion: "Préstamo / Venta", precio_unitario: asistente.monto, cantidad: 1, porcentaje_impuesto: 0 }],
+    }});
+    toast("¡Listo! Factura emitida correctamente");
+    cerrarAsistente();
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
+}
+
+document.getElementById("formFactura").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const editId = document.getElementById("factura_edit_id").value;
+  const filas = document.querySelectorAll("#itemsContainer .item-row");
+  if (!editId && filas.length === 0) { toast("Agrega al menos un ítem", "error"); return; }
+  const items = Array.from(filas).map(row => ({
+    descripcion: row.querySelector(".item-desc").value,
+    cantidad: parseFloat(row.querySelector(".item-cant").value),
+    precio_unitario: parseFloat(row.querySelector(".item-precio").value),
+    porcentaje_impuesto: parseFloat(row.querySelector(".item-imp").value || 0),
+  }));
+  try {
+    if (editId) {
+      const tienePagos = document.getElementById("factura_tiene_pagos").value === "1";
+      const capitalPagado = parseFloat(document.getElementById("factura_capital_pagado").value || 0);
+      if (tienePagos) {
+        const confirmar = confirm(
+          `Esta factura ya tiene ${fmt.money(capitalPagado)} cobrados. Si guardas, el sistema reaplica ese ` +
+          `abono automáticamente sobre el plan corregido. ¿Confirmas que quieres guardar los cambios?`
+        );
+        if (!confirmar) return;
+      }
+      const body = {
+        fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
+        frecuencia_pago: document.getElementById("frecuencia_pago").value,
+        notas: document.getElementById("factura_notas").value || null,
+        numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
+        tasa_interes_prestamo: document.getElementById("tasa_interes_prestamo").value
+          ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null,
+        items,
+      };
+      await api(`/api/facturas/${editId}`, { method: "PUT", body });
+      toast("Factura actualizada correctamente");
+    } else {
+      await api("/api/facturas", { method: "POST", body: {
+        cliente_id: parseInt(document.getElementById("cliente_id").value),
+        fecha_vencimiento: document.getElementById("fecha_vencimiento").value,
+        frecuencia_pago: document.getElementById("frecuencia_pago").value,
+        numero_cuotas: parseInt(document.getElementById("numero_cuotas").value || 1),
+        tasa_interes_prestamo: document.getElementById("tasa_interes_prestamo").value
+          ? parseFloat(document.getElementById("tasa_interes_prestamo").value) : null,
+        notas: document.getElementById("factura_notas").value || null,
+        items,
+      }});
+      toast("Factura emitida correctamente");
+    }
+    cerrarModalFactura();
+    e.target.reset();
+    document.getElementById("itemsContainer").innerHTML = "";
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
+});
+
+let facturasPorId = {};
+
+document.getElementById("formReenganche").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const facturaId = parseInt(document.getElementById("reenganche_factura_id").value);
+  try {
+    await api(`/api/facturas/${facturaId}/reenganche`, { method: "POST", body: {
+      monto_adicional: parseFloat(document.getElementById("reenganche_monto").value),
+      fecha_vencimiento: document.getElementById("reenganche_fecha_vencimiento").value,
+      numero_cuotas: parseInt(document.getElementById("reenganche_numero_cuotas").value || 1),
+      descripcion: document.getElementById("reenganche_descripcion").value || null,
+    }});
+    toast("Reenganche procesado — se generó una nueva factura consolidada");
+    cerrarModalReenganche();
+    e.target.reset();
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
+});
+
+document.getElementById("formPago").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const facturaId = parseInt(document.getElementById("pago_factura_id").value);
+  const facturaAntes = facturasPorId[facturaId]; // guardamos referencia antes de recargar la lista
+  try {
+    const monto = parseFloat(document.getElementById("pago_monto").value);
+    // El tipo (abono/pago total) se determina solo, comparando el monto con el
+    // saldo pendiente — así el usuario no tiene que decidirlo ni puede
+    // equivocarse dejando un dato que no coincide con lo que realmente pagó.
+    const tipoPago = facturaAntes && monto >= facturaAntes.saldo_pendiente ? "total" : "abono";
+    const pagoRegistrado = await api("/api/pagos", { method: "POST", body: {
+      factura_id: facturaId,
+      monto,
+      tipo_pago: tipoPago,
+      metodo_pago: document.getElementById("pago_metodo").value,
+      referencia: document.getElementById("pago_referencia").value || null,
+    }});
+    if (pagoRegistrado.vuelto > 0) {
+      toast(`Pago registrado — entrega ${fmt.money(pagoRegistrado.vuelto)} de vuelto en efectivo`);
+    } else {
+      toast("Pago registrado y recibo generado");
+    }
+    cerrarModalPago();
+    e.target.reset();
+    await cargarFacturas();
+
+    // Notificación de pago por WhatsApp (manual: abre el chat con el mensaje listo)
+    if (facturaAntes?.cliente?.telefono) {
+      const f = facturasPorId[facturaId] || facturaAntes;
+      const saldoRestante = f.saldo_pendiente;
+      const mensaje = saldoRestante > 0
+        ? `Hola ${facturaAntes.cliente.razon_social}, confirmamos que recibimos tu pago de ${fmt.money(monto)} para la factura ${facturaAntes.numero_factura}. Saldo restante: ${fmt.money(saldoRestante)}.`
+        : `Hola ${facturaAntes.cliente.razon_social}, confirmamos que recibimos tu pago de ${fmt.money(monto)} para la factura ${facturaAntes.numero_factura}. ¡Tu factura quedó saldada por completo, gracias!`;
+      try {
+        abrirWhatsapp(facturaAntes.cliente.telefono, mensaje);
+      } catch (_) { /* cliente sin teléfono válido: se omite silenciosamente aquí */ }
+    } else {
+      toast("Este cliente no tiene teléfono registrado — no se pudo abrir la notificación por WhatsApp", "error");
+    }
+  } catch (err) { toast(err.message, "error"); }
+});
+
+function autocompletarHasta() {
+  // Si eligió "Desde" y todavía no ha puesto "Hasta", se lo llena solo con
+  // la fecha de hoy — así no tiene que escoger las dos fechas cada vez.
+  const desde = document.getElementById("filtroFechaDesde");
+  const hasta = document.getElementById("filtroFechaHasta");
+  if (desde.value && !hasta.value) {
+    const hoy = new Date();
+    hasta.value = hoy.toISOString().slice(0, 10);
+  }
+}
+
+async function eliminarFactura(facturaId, numeroFactura) {
+  const f = facturasPorId[facturaId];
+  const abonado = f ? fmt.money(f.total_abonado) : "";
+  const advertenciaPagos = f && f.total_abonado > 0
+    ? `\n\nOJO: esta factura ya tiene ${abonado} cobrados — ese historial de pago también se borra.`
+    : "";
+  const confirmar = confirm(
+    `¿Eliminar la factura ${numeroFactura}? Esto es IRREVERSIBLE: se borra la factura, sus cuotas y sus pagos ` +
+    `de forma permanente. El cliente y sus demás facturas no se tocan.${advertenciaPagos}`
+  );
+  if (!confirmar) return;
+  try {
+    await api(`/api/facturas/${facturaId}`, { method: "DELETE" });
+    toast(`Factura ${numeroFactura} eliminada`);
+    cargarFacturas();
+  } catch (err) { toast(err.message, "error"); }
+}
+
+async function cargarFacturas() {
+  try {
+    const params = new URLSearchParams();
+    if (clienteFiltro) params.set("cliente_id", clienteFiltro);
+    const texto = document.getElementById("buscadorFacturas")?.value.trim();
+    if (texto) params.set("q", texto);
+    const estado = document.getElementById("filtroEstado")?.value;
+    if (estado) params.set("estado", estado);
+    const desde = document.getElementById("filtroFechaDesde")?.value;
+    if (desde) params.set("fecha_desde", desde);
+    const hasta = document.getElementById("filtroFechaHasta")?.value;
+    if (hasta) params.set("fecha_hasta", hasta);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const facturas = await api(`/api/facturas${qs}`);
+    facturasPorId = {};
+    facturas.forEach(f => facturasPorId[f.id] = f);
+    document.getElementById("tablaFacturas").innerHTML = facturas.map(f => `
+      <tr>
+        <td class="font-mono-ledger" data-label="No. Factura">${f.numero_factura}</td>
+        <td data-label="Cliente">${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}${f.notas ? ` <span title="${f.notas.replace(/"/g, "&quot;")}" style="cursor:help; color:var(--text-dim)">📝</span>` : ""}</td>
+        <td data-label="Vencimiento">${fmt.date(f.fecha_vencimiento_vigente)}</td>
+        <td class="font-mono-ledger" data-label="Total">${fmt.money(f.total)}</td>
+        <td class="font-mono-ledger" data-label="Abonado">${fmt.money(f.total_abonado)}</td>
+        <td class="font-mono-ledger" data-label="Saldo">${fmt.money(f.saldo_pendiente)}</td>
+        <td data-label="Cuota"><span class="text-sm">${f.texto_cuota}</span></td>
+        <td data-label="Estado"><span class="badge badge-${f.estado}">${f.estado}</span></td>
+        <td data-label="Mora"><span class="badge badge-${f.estado_mora}">${f.estado_mora.replace("_"," ")}</span> ${f.dias_atraso > 0 ? `<span class="text-xs" style="color:var(--text-dim)">(${f.dias_atraso}d)</span>` : ""}</td>
+        <td class="whitespace-nowrap">
+          <div class="flex items-center gap-3">
+            ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:var(--accent)" onclick="abrirModalPago(${f.id})">Cobrar</button>` : ""}
+            ${f.estado !== "pagada" && f.estado !== "anulada" && f.estado !== "reenganchada" ? `<button class="text-sm" style="color:#f0a500" onclick="abrirModalReenganche(${f.id})">Reenganchar</button>` : ""}
+            ${f.estado !== "pagada" && f.estado !== "anulada" ? `<button class="text-sm" style="color:var(--text-dim)" onclick="abrirModalFacturaEdicion(${f.id})">Editar</button>` : ""}
+            <button class="text-sm" style="color:var(--text-dim)" title="Descargar PDF" onclick="descargarPDFFactura(${f.id}, '${f.numero_factura}').catch(err => toast(err.message, 'error'))">PDF</button>
+            <button class="text-sm" style="color:var(--text-dim)" title="Descargar como imagen (JPG)" onclick="descargarJPGFactura(${f.id}).catch(err => toast(err.message, 'error'))">JPG</button>
+            <button class="text-sm" style="color:#25D366" title="Enviar por WhatsApp" onclick="enviarPorWhatsapp(${f.id})">WhatsApp</button>
+            ${esAdmin ? `<button class="text-sm" style="color:var(--danger,#e5484d)" title="Eliminar factura (irreversible)" onclick="eliminarFactura(${f.id}, '${f.numero_factura}')">Eliminar</button>` : ""}
+          </div>
+        </td>
+      </tr>
+    `).join("") || `<tr><td colspan="10" class="text-center py-8" style="color:var(--text-dim)">Sin facturas registradas aún.</td></tr>`;
+  } catch (err) { toast(err.message, "error"); }
+}
+
+async function descargarJPGFactura(facturaId) {
+  const f = facturasPorId[facturaId];
+  if (!f) throw new Error("No encontré esa factura, refresca la página e intenta de nuevo");
+
+  // Arma un recibo visual (fondo blanco, para que se vea bien como imagen/foto)
+  const recibo = document.createElement("div");
+  recibo.style.cssText = "position:fixed; left:-9999px; top:0; width:380px; background:#ffffff; color:#111827; font-family:system-ui,sans-serif; padding:24px; border-radius:12px;";
+  recibo.innerHTML = `
+    <div style="text-align:center; margin-bottom:16px;">
+      <img src="static/img/logo-rym.jpeg" style="width:56px; height:56px; border-radius:8px; object-fit:cover; margin:0 auto 8px;" />
+      <div style="font-size:18px; font-weight:700;">RYM Inversiones</div>
+      <div style="font-size:12px; color:#6b7280;">Comprobante de factura</div>
+    </div>
+    <div style="border-top:1px dashed #d1d5db; border-bottom:1px dashed #d1d5db; padding:12px 0; margin-bottom:12px; font-size:14px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">No. Factura</span><strong>${f.numero_factura}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Cliente</span><strong>${f.cliente ? f.cliente.razon_social : "#" + f.cliente_id}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Vencimiento</span><strong>${fmt.date(f.fecha_vencimiento_vigente)}</strong></div>
+      <div style="display:flex; justify-content:space-between;"><span style="color:#6b7280;">Cuota</span><strong>${f.texto_cuota}</strong></div>
+    </div>
+    <div style="font-size:14px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Total</span><strong>${fmt.money(f.total)}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Abonado</span><strong>${fmt.money(f.total_abonado)}</strong></div>
+      <div style="display:flex; justify-content:space-between; font-size:16px; margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
+    </div>
+    <div style="text-align:center; margin-top:16px; font-size:11px; color:#9ca3af;">Generado el ${fmt.date(new Date())}</div>
+    ${f.notas ? `<div style="margin-top:14px; padding-top:10px; border-top:1px dashed #d1d5db; font-size:12px; color:#374151;"><strong>Nota:</strong> ${f.notas}</div>` : ""}
+  `;
+  document.body.appendChild(recibo);
+
+  try {
+    const canvas = await html2canvas(recibo, { scale: 2, backgroundColor: "#ffffff" });
+    const blobUrl = canvas.toDataURL("image/jpeg", 0.92);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `factura_${f.numero_factura}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast("Recibo descargado como imagen JPG");
+  } finally {
+    recibo.remove();
+  }
+}
+
+async function enviarPorWhatsapp(facturaId) {
+  const f = facturasPorId[facturaId];
+  if (!f) return;
+  if (!f.cliente?.telefono) {
+    toast("Este cliente no tiene teléfono registrado — agrégalo en Clientes primero", "error");
+    return;
+  }
+  try {
+    await descargarPDFFactura(f.id, f.numero_factura);
+    const saldo = f.saldo_pendiente;
+    const mensaje = `Hola ${f.cliente.razon_social}, te compartimos tu factura ${f.numero_factura} por ${fmt.money(f.total)} (saldo pendiente: ${fmt.money(saldo)}, ${f.texto_cuota}). Vence el ${fmt.date(f.fecha_vencimiento_vigente)}.`;
+    abrirWhatsapp(f.cliente.telefono, mensaje);
+    toast("Se descargó el PDF — adjúntalo en la conversación de WhatsApp que se abrió");
+  } catch (err) { toast(err.message, "error"); }
+}
+
+cargarFacturas();
+</script>
+</body>
+</html>

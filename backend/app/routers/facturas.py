@@ -56,6 +56,28 @@ def _siguiente_vencimiento(base: date, numero: int, frecuencia: str) -> date:
     return base + relativedelta(months=numero - 1)
 
 
+def _recalcular_fechas_pendientes(factura: Factura, nueva_fecha_base: date, frecuencia: str) -> None:
+    """Reancla el calendario de cuotas cuando la operadora fuerza/edita la
+    fecha de pago (o cambia la frecuencia) SIN tocar montos ni cantidad de
+    cuotas — ej. "el cliente se atrasó pero acordamos que ahora paga cada
+    10 de mes en vez de cada 5". Las cuotas YA PAGADAS son historial y no
+    se tocan (nunca se reescribe cuándo pagó algo). A partir de la primera
+    cuota todavía pendiente, se recalculan en cadena mes a mes (o semana/
+    quincena a quincena) desde 'nueva_fecha_base', con el mismo cálculo
+    limpio de _siguiente_vencimiento (sin arrastrar error acumulado ni
+    saltos de mes incorrectos): la 1ra pendiente cae exactamente en
+    nueva_fecha_base, la 2da un intervalo después, la 3ra dos intervalos
+    después, etc. Los montos y estados de cada cuota no se alteran."""
+    if not factura.cuotas:
+        return
+    pendientes = sorted(
+        (c for c in factura.cuotas if c.estado != EstadoFactura.pagada),
+        key=lambda c: c.numero_cuota,
+    )
+    for indice, cuota in enumerate(pendientes, start=1):
+        cuota.fecha_vencimiento = _siguiente_vencimiento(nueva_fecha_base, indice, frecuencia)
+
+
 def _generar_plan_cuotas(total: Decimal, fecha_base: date, numero_cuotas: int, frecuencia: str) -> List[Cuota]:
     """Reparte el total en cuotas iguales (con ajuste de redondeo en la última).
     Se usa tanto al emitir una factura nueva como al crear la factura consolidada
@@ -236,6 +258,11 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
         factura.frecuencia_pago = payload.frecuencia_pago
     if payload.notas is not None:
         factura.notas = payload.notas
+
+    cambio_calendario = (
+        (payload.fecha_vencimiento is not None and payload.fecha_vencimiento != factura.fecha_vencimiento)
+        or (payload.frecuencia_pago is not None and payload.frecuencia_pago != factura.frecuencia_pago)
+    )
     if payload.fecha_vencimiento is not None:
         factura.fecha_vencimiento = payload.fecha_vencimiento
 
@@ -243,6 +270,14 @@ def editar_factura(factura_id: int, payload: FacturaUpdate, db: Session = Depend
     quiere_cambiar_montos = any(
         v is not None for v in (payload.items, payload.numero_cuotas, payload.descuento, payload.tasa_interes_prestamo)
     )
+
+    if not quiere_cambiar_montos and cambio_calendario:
+        # No se tocan montos ni cantidad de cuotas: solo se reancla el
+        # calendario de las cuotas que aún faltan por pagar (ver docstring
+        # de _recalcular_fechas_pendientes). Antes de este fix, forzar la
+        # fecha aquí no tenía ningún efecto real porque solo se actualizaba
+        # factura.fecha_vencimiento y nunca las fechas de cada cuota.
+        _recalcular_fechas_pendientes(factura, factura.fecha_vencimiento, factura.frecuencia_pago)
 
     if quiere_cambiar_montos:
         capital_ya_pagado = sum((Decimal(p.monto_capital) for p in factura.pagos), Decimal("0"))

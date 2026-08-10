@@ -832,7 +832,7 @@ async function descargarJPGFactura(facturaId) {
     <div style="font-size:14px;">
       ${Number(f.interes_prestamo) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Capital</span><strong>${fmt.money(f.subtotal)}</strong></div>
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Interés</span><strong>${fmt.money(f.interes_prestamo)}</strong></div>` : ""}
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-top:6px; border-top:1px dashed #d1d5db;"><span style="color:#6b7280;">Capital e Interés</span><strong>${fmt.money(f.total)}</strong></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-top:6px; border-top:1px dashed #d1d5db;"><span style="color:#6b7280;">Total</span><strong>${fmt.money(f.total)}</strong></div>
       <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="color:#6b7280;">Abonado</span><strong>${fmt.money(f.total_abonado)}</strong></div>
       <div style="display:flex; justify-content:space-between; font-size:16px; margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb;"><span>Saldo</span><strong>${fmt.money(f.saldo_pendiente)}</strong></div>
     </div>

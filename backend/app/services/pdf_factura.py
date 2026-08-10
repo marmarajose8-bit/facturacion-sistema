@@ -1,26 +1,50 @@
 """Genera el PDF de una factura para descargar o enviar al cliente."""
 import io
+from datetime import date, datetime
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image,
 )
 
 from app.models.factura import Factura
+
+MESES_ES = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+]
 
 
 def _fmt(monto) -> str:
     return f"RD$ {float(monto or 0):,.2f}"
 
 
-def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") -> bytes:
+def _fecha_es(valor) -> str:
+    """Formatea una fecha en español ('5 de agosto de 2026'). Acepta un
+    date/datetime, un string ISO ('2026-08-05') o None/vacío/valor
+    corrupto — en cualquiera de esos últimos casos cae de vuelta a la
+    fecha de hoy en vez de imprimir algo como 'Invalid Date' o 'None'."""
+    dt = valor
+    if isinstance(dt, str):
+        try:
+            dt = date.fromisoformat(dt[:10])
+        except (ValueError, TypeError):
+            dt = None
+    if isinstance(dt, datetime):
+        dt = dt.date()
+    if not isinstance(dt, date):
+        dt = date.today()
+    return f"{dt.day} de {MESES_ES[dt.month - 1]} de {dt.year}"
+
+
+def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa", logo_path: str = None) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=letter,
-        topMargin=1.8 * cm, bottomMargin=1.8 * cm,
+        topMargin=1.8 * cm, bottomMargin=2.2 * cm,
         leftMargin=1.8 * cm, rightMargin=1.8 * cm,
     )
 
@@ -31,16 +55,32 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
 
     story = []
 
-    # Encabezado
-    story.append(Paragraph(nombre_empresa, titulo))
+    # Encabezado (con logo si está disponible)
+    if logo_path:
+        try:
+            logo = Image(logo_path, width=1.6 * cm, height=1.6 * cm)
+            encabezado = Table(
+                [[logo, Paragraph(nombre_empresa, titulo)]],
+                colWidths=[2 * cm, 15 * cm],
+            )
+            encabezado.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (0, 0), 0),
+            ]))
+            story.append(encabezado)
+        except Exception:
+            story.append(Paragraph(nombre_empresa, titulo))
+    else:
+        story.append(Paragraph(nombre_empresa, titulo))
+
     story.append(Paragraph(f"Factura {factura.numero_factura}", subtitulo))
     story.append(Spacer(1, 14))
 
-    # Datos cliente / fechas
+    # Datos cliente / fechas — siempre en español, nunca ISO crudo
     cliente = factura.cliente
     datos = [
-        ["Cliente:", cliente.razon_social, "Fecha emisión:", str(factura.fecha_emision)],
-        ["Documento:", cliente.numero_documento, "Fecha de Pago:", str(factura.fecha_vencimiento_vigente)],
+        ["Cliente:", cliente.razon_social, "Fecha emisión:", _fecha_es(factura.fecha_emision)],
+        ["Documento:", cliente.numero_documento, "Fecha de Pago:", _fecha_es(factura.fecha_vencimiento_vigente)],
         ["Teléfono:", cliente.telefono or "-", "Estado:", factura.estado.value.capitalize()],
         ["Cuota:", factura.texto_cuota, "", ""],
     ]
@@ -82,10 +122,10 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
     story.append(tabla_items)
     story.append(Spacer(1, 12))
 
-    # Totales — la fila final ya no dice "Total", dice "Capital e Interés"
-    # (con el monto final de la factura), que es como se maneja el negocio.
-    # El desglose de "Capital" e "Interés" por separado solo se agrega cuando
-    # la factura de verdad tiene interés aplicado.
+    # Totales — se mantiene el desglose de "Capital" e "Interés" por
+    # separado (solo cuando la factura de verdad tiene interés aplicado),
+    # pero la fila final ya no dice "Capital e Interés": dice "Total",
+    # con el mismo monto combinado de siempre.
     tiene_interes = factura.interes_prestamo and factura.interes_prestamo > 0
     totales = []
     if tiene_interes:
@@ -94,8 +134,8 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
     if tiene_interes:
         totales.append(["Interés", _fmt(factura.interes_prestamo)])
     totales.append(["Descuento", f"-{_fmt(factura.descuento)}"])
-    fila_capital_interes = len(totales)
-    totales.append(["Capital e Interés", _fmt(factura.total)])
+    fila_total = len(totales)
+    totales.append(["Total", _fmt(factura.total)])
     totales += [
         ["Abonado", _fmt(factura.total_abonado)],
         ["Saldo pendiente", _fmt(factura.saldo_pendiente)],
@@ -108,12 +148,12 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
         ("FONTSIZE", (0, -1), (-1, -1), 11),
         ("LINEABOVE", (0, -1), (-1, -1), 0.8, colors.black),
         ("TOPPADDING", (0, -1), (-1, -1), 6),
-        # Resalta la fila "Capital e Interés" para que se vea de un vistazo.
-        ("FONTNAME", (0, fila_capital_interes), (-1, fila_capital_interes), "Helvetica-Bold"),
-        ("LINEABOVE", (0, fila_capital_interes), (-1, fila_capital_interes), 0.4, colors.HexColor("#999999")),
-        ("LINEBELOW", (0, fila_capital_interes), (-1, fila_capital_interes), 0.4, colors.HexColor("#999999")),
-        ("TOPPADDING", (0, fila_capital_interes), (-1, fila_capital_interes), 5),
-        ("BOTTOMPADDING", (0, fila_capital_interes), (-1, fila_capital_interes), 5),
+        # Resalta la fila "Total" para que se vea de un vistazo.
+        ("FONTNAME", (0, fila_total), (-1, fila_total), "Helvetica-Bold"),
+        ("LINEABOVE", (0, fila_total), (-1, fila_total), 0.4, colors.HexColor("#999999")),
+        ("LINEBELOW", (0, fila_total), (-1, fila_total), 0.4, colors.HexColor("#999999")),
+        ("TOPPADDING", (0, fila_total), (-1, fila_total), 5),
+        ("BOTTOMPADDING", (0, fila_total), (-1, fila_total), 5),
     ]
     tabla_totales.setStyle(TableStyle(estilo_totales))
     story.append(tabla_totales)
@@ -123,5 +163,16 @@ def generar_pdf_factura(factura: Factura, nombre_empresa: str = "Tu Empresa") ->
         story.append(Paragraph("Notas:", etiqueta))
         story.append(Paragraph(factura.notas, styles["Normal"]))
 
-    doc.build(story)
+    def _pie_de_pagina(canvas, doc_):
+        """Fecha de generación fija (la del momento en que se crea el PDF),
+        siempre formateada en español y nunca como 'Invalid Date'."""
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#9ca3af"))
+        texto = f"Generado el {_fecha_es(date.today())}"
+        ancho_pagina = letter[0]
+        canvas.drawCentredString(ancho_pagina / 2, 1.2 * cm, texto)
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=_pie_de_pagina, onLaterPages=_pie_de_pagina)
     return buffer.getvalue()

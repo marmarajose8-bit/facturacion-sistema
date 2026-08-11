@@ -35,7 +35,7 @@ def _marcar_estado_cuota(c: Cuota) -> None:
         c.estado = EstadoFactura.parcial
 
 
-def _aplicar_capital_secuencial(factura: Factura, monto_capital: Decimal, cuota_inicio: Optional[Cuota] = None) -> None:
+def _aplicar_capital_secuencial(factura: Factura, monto_capital: Decimal, cuota_inicio: Optional[Cuota] = None) -> List[int]:
     """Reparte `monto_capital` estrictamente en orden de calendario (número
     de cuota ascendente), llenando primero la cuota más antigua que aún
     tenga saldo antes de tocar la siguiente. Nunca deja un residuo "flotando"
@@ -46,6 +46,9 @@ def _aplicar_capital_secuencial(factura: Factura, monto_capital: Decimal, cuota_
     si el usuario/UI señaló explícitamente cuál cobrar) pero SIGUE derramando
     el sobrante hacia las cuotas siguientes en vez de perderlo — así el
     resultado es idéntico sin importar si el pago llegó con o sin cuota_id.
+
+    Devuelve la lista de números de cuota que recibieron algo de dinero en
+    esta pasada (para que el Pago pueda guardar qué rango cubrió).
     """
     numero_desde = cuota_inicio.numero_cuota if cuota_inicio else 0
     cuotas_pendientes = sorted(
@@ -53,6 +56,7 @@ def _aplicar_capital_secuencial(factura: Factura, monto_capital: Decimal, cuota_
         key=lambda c: c.numero_cuota,
     )
     restante = monto_capital
+    numeros_tocados: List[int] = []
     for c in cuotas_pendientes:
         if restante <= 0:
             break
@@ -65,6 +69,8 @@ def _aplicar_capital_secuencial(factura: Factura, monto_capital: Decimal, cuota_
         c.monto_pagado = (Decimal(c.monto_pagado) + aplicado_a_esta).quantize(CENTAVO)
         _marcar_estado_cuota(c)
         restante -= aplicado_a_esta
+        numeros_tocados.append(c.numero_cuota)
+    return numeros_tocados
 
 
 @router.get("", response_model=List[PagoOut])
@@ -136,7 +142,9 @@ def registrar_pago(
     # Reparto del capital: estrictamente secuencial por número de cuota,
     # sin perder centavos y sin saltar cuotas — igual haya llegado o no un
     # cuota_id explícito (ver _aplicar_capital_secuencial).
-    _aplicar_capital_secuencial(factura, aplicado_capital, cuota_inicio=cuota_seleccionada)
+    numeros_tocados = _aplicar_capital_secuencial(factura, aplicado_capital, cuota_inicio=cuota_seleccionada)
+    cuota_desde = min(numeros_tocados) if numeros_tocados else None
+    cuota_hasta = max(numeros_tocados) if numeros_tocados else None
 
     if factura.saldo_capital <= 0:
         factura.estado = EstadoFactura.pagada
@@ -155,6 +163,8 @@ def registrar_pago(
         monto_recargo=aplicado_recargo,
         monto_total=monto_aplicado,
         vuelto=vuelto,
+        cuota_desde=cuota_desde,
+        cuota_hasta=cuota_hasta,
         referencia=payload.referencia,
         notas=payload.notas,
     )

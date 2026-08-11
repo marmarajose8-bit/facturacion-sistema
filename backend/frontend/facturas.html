@@ -814,6 +814,8 @@ document.getElementById("formPago").addEventListener("submit", async (e) => {
     }});
     if (pagoRegistrado.vuelto > 0) {
       toast(`Pago registrado — entrega ${fmt.money(pagoRegistrado.vuelto)} de vuelto en efectivo`);
+    } else if (pagoRegistrado.texto_cuotas_cubiertas && pagoRegistrado.texto_cuotas_cubiertas !== "-") {
+      toast(`Pago registrado — cubrió ${pagoRegistrado.texto_cuotas_cubiertas}`);
     } else {
       toast("Pago registrado y recibo generado");
     }

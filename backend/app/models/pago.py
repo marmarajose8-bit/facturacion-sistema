@@ -14,8 +14,8 @@ class MetodoPago(str, enum.Enum):
 
 
 class TipoPago(str, enum.Enum):
-    abono = "abono"      # pago parcial a capital
-    total = "total"       # liquida la factura/cuota
+    abono = "abono"
+    total = "total"
 
 
 class Pago(Base):
@@ -33,9 +33,12 @@ class Pago(Base):
     monto_interes = Column(Numeric(14, 2), nullable=False, default=0)
     monto_recargo = Column(Numeric(14, 2), nullable=False, default=0)
     monto_total = Column(Numeric(14, 2), nullable=False, default=0)
-    vuelto = Column(Numeric(14, 2), nullable=False, default=0)  # cambio entregado al cliente (solo efectivo)
+    vuelto = Column(Numeric(14, 2), nullable=False, default=0)
 
-    referencia = Column(String(100), nullable=True)  # # cheque, # transferencia, etc.
+    cuota_desde = Column(Integer, nullable=True)
+    cuota_hasta = Column(Integer, nullable=True)
+
+    referencia = Column(String(100), nullable=True)
     notas = Column(Text, nullable=True)
 
     fecha_pago = Column(DateTime(timezone=True), server_default=func.now())
@@ -43,9 +46,18 @@ class Pago(Base):
     factura = relationship("Factura", back_populates="pagos")
     recibo = relationship("Recibo", back_populates="pago", uselist=False)
 
+    @property
+    def texto_cuotas_cubiertas(self) -> str:
+        if self.cuota_desde is None:
+            return "-"
+        total = self.factura.total_cuotas if self.factura else None
+        sufijo = f" de {total}" if total else ""
+        if self.cuota_desde == self.cuota_hasta:
+            return f"Cuota {self.cuota_desde}{sufijo}"
+        return f"Cuotas {self.cuota_desde} a {self.cuota_hasta}{sufijo}"
+
 
 class Recibo(Base):
-    """Recibo de caja generado automáticamente por cada pago registrado."""
     __tablename__ = "recibos"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -56,3 +68,15 @@ class Recibo(Base):
     generado_en = Column(DateTime(timezone=True), server_default=func.now())
 
     pago = relationship("Pago", back_populates="recibo")
+
+    @property
+    def texto_cuotas_cubiertas(self) -> str:
+        return self.pago.texto_cuotas_cubiertas if self.pago else "-"
+
+    @property
+    def cuota_desde(self):
+        return self.pago.cuota_desde if self.pago else None
+
+    @property
+    def cuota_hasta(self):
+        return self.pago.cuota_hasta if self.pago else None

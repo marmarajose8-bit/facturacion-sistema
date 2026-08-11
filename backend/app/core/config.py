@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     REENGANCHE_DESCRIPCION_DEFECTO: str = "Reenganche de crédito"
     PRESTAMO_DESCRIPCION_DEFECTO: str = "Préstamo personal"
 
+    # Auto-ping para evitar que la nube suspenda el servidor por inactividad.
+    # Apagado por defecto a propósito: solo debe activarse en producción,
+    # explícitamente, vía variable de entorno — así ningún desarrollador
+    # termina con este ping corriendo sin darse cuenta en su máquina local.
+    KEEP_ALIVE_ENABLED: bool = False
+    KEEP_ALIVE_URL: str = ""  # ej. https://ryminversiones.com/api/health
+    KEEP_ALIVE_INTERVALO_MINUTOS: int = 14
+
     @field_validator("DATABASE_URL")
     @classmethod
     def _normalizar_database_url(cls, v: str) -> str:

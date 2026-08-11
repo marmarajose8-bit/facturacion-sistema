@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from fastapi import FastAPI
@@ -7,6 +8,7 @@ from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.routers import auth, clientes, facturas, pagos, dashboard, cartera
+from app.services.keep_alive import mantener_servidor_despierto
 
 app = FastAPI(title="Facturación API")
 
@@ -70,6 +72,30 @@ async def facturas_html():
 @app.get("/cartera.html")
 async def cartera_html():
     return _serve("cartera.html")
+
+
+@app.on_event("startup")
+async def startup_event():
+    if not settings.KEEP_ALIVE_ENABLED:
+        return
+    if not settings.KEEP_ALIVE_URL:
+        # Encendido por variable de entorno pero sin URL configurada: no
+        # adivinamos ninguna URL pública, mejor no arrancar nada a ciegas.
+        import logging
+        logging.getLogger(__name__).warning(
+            "KEEP_ALIVE_ENABLED=true pero KEEP_ALIVE_URL está vacío — el auto-ping no se activó."
+        )
+        return
+    app.state.keep_alive_task = asyncio.create_task(
+        mantener_servidor_despierto(settings.KEEP_ALIVE_URL, settings.KEEP_ALIVE_INTERVALO_MINUTOS)
+    )
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    tarea = getattr(app.state, "keep_alive_task", None)
+    if tarea:
+        tarea.cancel()
 
 
 @app.get("/api/health")

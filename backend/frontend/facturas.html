@@ -15,6 +15,22 @@
     transition: border-color .15s ease; width:100%; text-align:left;
   }
   .asistente-opcion:hover, .asistente-cliente-item:hover { border-color:var(--accent); }
+
+  /* Buscador de cliente (combobox): escribir para filtrar, o hacer clic
+     para desplegar la lista completa "a la antigua". */
+  .combo-cliente { position:relative; }
+  .combo-lista {
+    position:absolute; z-index:50; left:0; right:0; top:calc(100% + 4px);
+    max-height:230px; overflow-y:auto; background:var(--panel-2);
+    border:1px solid var(--border); border-radius:0.6rem;
+    box-shadow:0 10px 28px rgba(0,0,0,.4);
+  }
+  .combo-item {
+    display:block; width:100%; text-align:left; padding:0.6rem 0.85rem;
+    background:transparent; border:none; cursor:pointer; color:inherit; font-size:0.9rem;
+  }
+  .combo-item:hover, .combo-item.is-activa { background:var(--panel); }
+  .combo-vacio { padding:0.65rem 0.85rem; font-size:0.8rem; color:var(--text-dim); }
 </style>
 </head>
 <body class="min-h-screen">
@@ -176,7 +192,14 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Cliente</label>
-          <select id="cliente_id" required class="w-full mt-1"></select>
+          <div class="combo-cliente">
+            <input type="text" id="cliente_buscar" required autocomplete="off" class="w-full mt-1"
+                   placeholder="Escribe para buscar o haz clic para ver la lista..."
+                   oninput="clienteComboFiltrar()" onfocus="clienteComboAbrir()" onkeydown="clienteComboTeclado(event)"
+                   onblur="clienteComboCerrar()" />
+            <input type="hidden" id="cliente_id" />
+            <div id="clienteComboLista" class="combo-lista hidden"></div>
+          </div>
         </div>
         <div>
           <label class="text-xs" style="color:var(--text-dim)">Fecha de Pago</label>
@@ -326,7 +349,9 @@ function abrirModalFactura() {
   document.getElementById("modalFacturaTitulo").textContent = "Nueva factura";
   document.getElementById("formFacturaSubmitBtn").textContent = "Emitir factura";
   document.getElementById("facturaEditAviso").classList.add("hidden");
-  document.getElementById("cliente_id").disabled = false;
+  document.getElementById("cliente_buscar").value = "";
+  document.getElementById("cliente_buscar").disabled = false;
+  document.getElementById("cliente_id").value = "";
   document.getElementById("numero_cuotas").disabled = false;
   document.getElementById("btnAgregarItem").classList.remove("hidden");
   document.querySelectorAll(".item-row .item-desc, .item-row .item-precio, .item-row .item-cant, .item-row .item-imp")
@@ -384,8 +409,10 @@ async function abrirModalFacturaEdicion(facturaId) {
   document.getElementById("modalFacturaTitulo").textContent = `Editar factura ${f.numero_factura}`;
   document.getElementById("formFacturaSubmitBtn").textContent = "Guardar cambios";
 
+  const clienteActual = clientesCache.find(c => c.id === f.cliente_id);
   document.getElementById("cliente_id").value = f.cliente_id;
-  document.getElementById("cliente_id").disabled = true; // no se reasigna cliente al editar
+  document.getElementById("cliente_buscar").value = clienteActual ? clienteActual.razon_social : `#${f.cliente_id}`;
+  document.getElementById("cliente_buscar").disabled = true; // no se reasigna cliente al editar
   document.getElementById("fecha_vencimiento").value = f.fecha_vencimiento;
   document.getElementById("frecuencia_pago").value = f.frecuencia_pago;
   document.getElementById("numero_cuotas").value = f.total_cuotas;
@@ -517,7 +544,93 @@ function toggleAvanzado() {
 let clientesCache = [];
 async function cargarClientesSelect() {
   clientesCache = await api("/api/clientes?activo=true");
-  document.getElementById("cliente_id").innerHTML = clientesCache.map(c => `<option value="${c.id}">${c.razon_social}</option>`).join("");
+}
+
+/* ================== Buscador de cliente (combobox) ==================
+   Input de texto que filtra en tiempo real (usa normalizar(), el mismo
+   criterio sin acentos que ya usa el asistente rápido) + lista desplegable
+   para elegir con el mouse "a la antigua". El valor real que se envía al
+   backend vive en el input oculto #cliente_id — el texto visible es solo
+   para buscar/mostrar, nunca se manda tal cual. */
+let clienteComboIndice = -1;
+
+function clienteComboOpciones(texto) {
+  const t = normalizar(texto);
+  return clientesCache.filter(c => !t || normalizar(c.razon_social).includes(t));
+}
+
+function clienteComboRenderizar(opciones) {
+  const lista = document.getElementById("clienteComboLista");
+  clienteComboIndice = -1;
+  if (opciones.length === 0) {
+    lista.innerHTML = `<p class="combo-vacio">No se encontraron clientes con ese nombre.</p>`;
+  } else {
+    lista.innerHTML = opciones.slice(0, 100).map((c, i) =>
+      `<button type="button" class="combo-item" data-indice="${i}"
+        onmousedown="clienteComboElegir(${c.id})">${c.razon_social}</button>`
+    ).join("");
+  }
+  lista.classList.remove("hidden");
+}
+
+function clienteComboAbrir() {
+  clienteComboRenderizar(clienteComboOpciones(document.getElementById("cliente_buscar").value));
+}
+
+function clienteComboFiltrar() {
+  // Escribir invalida la selección anterior hasta que elija una opción
+  // real de la lista — así nunca se puede mandar un nombre suelto que no
+  // corresponda a ningún cliente.
+  document.getElementById("cliente_id").value = "";
+  clienteComboRenderizar(clienteComboOpciones(document.getElementById("cliente_buscar").value));
+}
+
+function clienteComboElegir(id) {
+  const c = clientesCache.find(cl => cl.id === id);
+  if (!c) return;
+  document.getElementById("cliente_id").value = c.id;
+  document.getElementById("cliente_buscar").value = c.razon_social;
+  document.getElementById("clienteComboLista").classList.add("hidden");
+}
+
+function clienteComboCerrar() {
+  // onmousedown en las opciones ya disparó la selección antes de que este
+  // blur llegue a correr, así que es seguro cerrar y limpiar aquí.
+  setTimeout(() => {
+    document.getElementById("clienteComboLista").classList.add("hidden");
+    // Si quedó texto escrito que no corresponde a ningún cliente elegido,
+    // se descarta — el campo no puede quedar con un nombre "a medias".
+    if (!document.getElementById("cliente_id").value) {
+      document.getElementById("cliente_buscar").value = "";
+    }
+  }, 150);
+}
+
+function clienteComboTeclado(e) {
+  const lista = document.getElementById("clienteComboLista");
+  const items = Array.from(lista.querySelectorAll(".combo-item"));
+  if (lista.classList.contains("hidden") || items.length === 0) {
+    if (e.key === "ArrowDown") clienteComboAbrir();
+    return;
+  }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    clienteComboIndice = Math.min(clienteComboIndice + 1, items.length - 1);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    clienteComboIndice = Math.max(clienteComboIndice - 1, 0);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (clienteComboIndice >= 0 && items[clienteComboIndice]) items[clienteComboIndice].dispatchEvent(new Event("mousedown"));
+    return;
+  } else if (e.key === "Escape") {
+    lista.classList.add("hidden");
+    return;
+  } else {
+    return;
+  }
+  items.forEach((el, i) => el.classList.toggle("is-activa", i === clienteComboIndice));
+  try { items[clienteComboIndice]?.scrollIntoView({ block: "nearest" }); } catch (_) {}
 }
 
 function normalizar(txt) {

@@ -1,0 +1,37 @@
+name: Respaldo diario de la base de datos
+
+# Corre todos los días a las 3:00 AM hora de RD (07:00 UTC, RD está en UTC-4).
+# También se puede lanzar a mano desde la pestaña "Actions" de GitHub con
+# "workflow_dispatch" — útil para probar sin esperar al horario programado.
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar pg_dump (cliente de Postgres) y pyzipper
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          pip install pyzipper
+
+      - name: Ejecutar el respaldo
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          ZIP_PASSWORD: ${{ secrets.ZIP_PASSWORD }}
+          RETENTION_DIAS: "7"
+        run: python backup_postgres.py
